@@ -30,6 +30,13 @@ Copy-Item -Path $DistDir -Destination $InnerDir -Recurse -Force
 Copy-Item -Path (Join-Path $DeployDir "kiosk.sh")    -Destination $InnerDir -Force
 Copy-Item -Path (Join-Path $DeployDir "setup-pi.sh") -Destination $InnerDir -Force
 
+# 工作区若是 CRLF（Windows autocrlf），zip 里的 .sh 到 Pi 上会报 $'\r': command not found，这里强制转 LF
+foreach ($name in @("kiosk.sh", "setup-pi.sh")) {
+  $path = Join-Path $InnerDir $name
+  $text = [IO.File]::ReadAllText($path) -replace "`r`n", "`n"
+  [IO.File]::WriteAllText($path, $text, (New-Object System.Text.UTF8Encoding($false)))
+}
+
 # 3. Compress
 Write-Host "[3/4] Creating zip ..." -ForegroundColor Cyan
 if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }

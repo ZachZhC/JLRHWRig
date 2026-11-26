@@ -1,0 +1,5 @@
+# 仓库跨 Windows / 树莓派使用：shell 脚本必须保持 LF，否则在 Pi 上会报 $'\r': command not found
+* text=auto
+*.sh  text eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf

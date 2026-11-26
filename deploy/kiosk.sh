@@ -41,6 +41,7 @@ while true; do
   "$BROWSER" \
     --kiosk --noerrdialogs --disable-infobars \
     --disable-session-crashed-bubble --hide-crash-restore-bubble \
+    --no-first-run --no-default-browser-check --password-store=basic \
     --disable-pinch --overscroll-history-navigation=0 \
     --use-gl=angle --ignore-gpu-blocklist \
     "$APP_URL"

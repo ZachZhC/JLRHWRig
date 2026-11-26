@@ -1,8 +1,8 @@
 # AGENTS.md — JLR 硬件测试台架 HMI 开发说明
 
 > 本文件是**写给接手的 AI / 开发者**的交接文档。请先完整读一遍再动代码。
-> 最后更新：2026-11-24（WCCM-BT 页接上真实模块：Web Serial 打 COM 口、CDC 帧编解码、
-> 连上自动握手；**模拟全部删除**，页面上每个按钮都发真帧、每个值都来自模块上报）
+> 最后更新：2026-11-26（树莓派部署自检：`.sh` 固定 LF、串口 dialout 权限、Chromium 首启参数；
+> WCCM-BT 页接真实模块：Web Serial 打 COM 口、CDC 帧编解码、连上自动握手，**模拟全部删除**）
 
 ---
 
@@ -48,6 +48,12 @@ npm run preview  # 预览 dist/，http://localhost:4173
 `vite.config.ts` 里已设 `base: './'`，目的是让 `dist/` 能用 `file://` 直接在树莓派 kiosk 下打开。
 
 `start-hmi.bat` 是给台架用的双击启动脚本（起 4173 预览 + 打开浏览器）。
+
+**树莓派部署**：`deploy/pack-for-pi.ps1` 在 Windows 上打包（`dist/` + `kiosk.sh` + `setup-pi.sh`），
+拷到 Pi 后 `bash setup-pi.sh` 一次性装依赖（Chromium、python3、`dialout` 串口权限、关屏保）
+并立即启动；`kiosk.sh` 是崩溃/退出后 2 秒自动重启的看门狗，浏览器名 `chromium` /
+`chromium-browser` 两种都探测。`.sh` 由 `.gitattributes` 固定为 LF —— 在 Windows 上手改脚本后
+再拷，必须保持 LF，CRLF 会让 Pi 上第一行就报 `$'\r': command not found`。
 
 ⚠️ **WCCM-BT 页的"音频下行播放"只能用 `http://` 打开，不能用 `file://`。**
 非安全上下文里 `navigator.mediaDevices` 直接不存在，列不出声卡也切不了输出。
