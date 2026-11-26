@@ -4,6 +4,7 @@ import { WindowPage } from './ui/WindowPage';
 import { SWMTesting } from './ui/SWMTesting';
 import { SWSTesting } from './ui/SWSTesting';
 import { CWCMTesting } from './ui/CWCMTesting';
+import { BTAudioTesting } from './ui/BTAudioTesting';
 import { WDCMTesting } from './ui/WDCMTesting';
 
 /**
@@ -45,6 +46,7 @@ export default function App() {
             {activeTab === 'swm' && <SWMTesting />}
             {activeTab === 'sws' && <SWSTesting />}
             {activeTab === 'cwcm' && <CWCMTesting />}
+            {activeTab === 'btaudio' && <BTAudioTesting />}
             {activeTab === 'wdcm' && <WDCMTesting />}
           </main>
         </div>

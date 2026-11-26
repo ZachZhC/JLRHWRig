@@ -9,6 +9,7 @@
   --faint: #5a6a7b;
   --accent: #2fd5c3;
   --amber: #f2b24c;
+  --danger: #e4635c;
   --radius: 14px;
   --font: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
@@ -871,13 +872,6 @@ button {
   font-size: 11px;
   letter-spacing: 0.06em;
   color: var(--faint);
-}
-
-.todo-state {
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.16em;
-  color: #46586a;
 }
 
 /* ---------- CWCM / WDCM 模块页 ---------- */
@@ -1900,6 +1894,986 @@ button {
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
+/* ========== WDCM 实物图 + NFC 检测动画 ========== */
+/* 舞台吃满剩余高度，实物图按 max-height 定尺寸（宽高比 1362:697），标题行在上、图在下 */
+.swm-page > .swm-stage.wdcm-stage {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 14px;
+}
+
+.wdcm-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wdcm-module-name {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: #6c8092;
+}
+
+.wdcm-enable {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  border: 1px solid #24343f;
+  border-radius: 8px;
+  background: #0b141b;
+  color: #7e8fa0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.wdcm-enable:hover {
+  border-color: #33505e;
+  color: #a7b8c6;
+}
+
+.wdcm-enable.is-on {
+  border-color: rgba(47, 213, 195, 0.6);
+  background: rgba(47, 213, 195, 0.1);
+  color: #b6f2e9;
+  box-shadow: 0 0 16px rgba(47, 213, 195, 0.22);
+}
+
+.wdcm-enable-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #33424e;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.wdcm-enable.is-on .wdcm-enable-dot {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.wdcm-enable-state {
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.wdcm-enable.is-on .wdcm-enable-state {
+  color: var(--accent);
+}
+
+.wdcm-img-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  height: 100%;
+  /* 用户要求再收小实物图；保留 height:100% 以便舞台变矮时自动缩 */
+  max-height: 205px;
+  aspect-ratio: 1362 / 697;
+  margin: 0 auto;
+}
+
+.wdcm-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 16px 26px rgba(0, 0, 0, 0.62));
+  pointer-events: none;
+}
+
+/* NFC 感应区锚点：线圈圆盘，left/top/width 由组件里的 COIL 常量按图标定 */
+.wdcm-coil {
+  position: absolute;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* 感应底光：检测到 NFC 时整个圆盘泛出青色并持续呼吸 */
+.nfc-halo {
+  position: absolute;
+  inset: -6%;
+  border-radius: 50%;
+  opacity: 0;
+  background: radial-gradient(
+    circle,
+    rgba(47, 213, 195, 0.5) 0%,
+    rgba(47, 213, 195, 0.22) 46%,
+    rgba(47, 213, 195, 0) 72%
+  );
+  transition: opacity 0.3s ease;
+}
+
+.wdcm-coil.is-on .nfc-halo {
+  opacity: 1;
+  animation: nfc-breathe 1.8s ease-in-out 0.3s infinite;
+}
+
+@keyframes nfc-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+/* 感应涟漪：三圈循环向外扩，只要处于检测状态就一直跑 */
+.nfc-ripple {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(47, 213, 195, 0.85);
+  box-shadow: 0 0 10px rgba(47, 213, 195, 0.45);
+  opacity: 0;
+}
+
+.wdcm-coil.is-on .nfc-ripple {
+  animation: nfc-ripple 1.8s cubic-bezier(0.25, 0.6, 0.35, 1) infinite;
+}
+
+.wdcm-coil.is-on .nfc-ripple-2 {
+  animation-delay: 0.6s;
+}
+
+.wdcm-coil.is-on .nfc-ripple-3 {
+  animation-delay: 1.2s;
+}
+
+@keyframes nfc-ripple {
+  0% {
+    opacity: 0.95;
+    transform: scale(0.7);
+  }
+  60% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.85);
+  }
+}
+
+/* NFC 卡：落下带一点回弹，之后保持；信号撤销时 0.3s 淡出 */
+.nfc-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 132%;
+  aspect-ratio: 86 / 54;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 9%;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f2f5f7, #c6d1d8 58%, #e7edf0);
+  opacity: 0;
+  transform: translate(-50%, -50%) translateY(-96px) scale(0.9);
+  transition: opacity 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.wdcm-coil.is-on .nfc-card {
+  opacity: 1;
+  transform: translate(-50%, -50%) translateY(0) scale(1);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6), 0 0 26px rgba(47, 213, 195, 0.5);
+  transition: opacity 0.4s ease 0.1s,
+    transform 0.7s cubic-bezier(0.18, 1.06, 0.32, 1), box-shadow 0.4s ease 0.3s;
+}
+
+/* 角标：说明这圈光在干什么 */
+.nfc-flag {
+  position: absolute;
+  left: 50%;
+  top: 104%;
+  padding: 2px 8px;
+  border: 1px solid rgba(47, 213, 195, 0.55);
+  border-radius: 4px;
+  background: rgba(47, 213, 195, 0.16);
+  color: #b6f2e9;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(-50%, 8px);
+  transition: opacity 0.3s ease 0.5s, transform 0.3s ease 0.5s;
+}
+
+.wdcm-coil.is-on .nfc-flag {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.nfc-chip {
+  flex: 0 0 auto;
+  width: 15%;
+  aspect-ratio: 32 / 24;
+  border-radius: 2px;
+  background: linear-gradient(135deg, #e8c66a, #a8823c);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.nfc-waves {
+  flex: 0 0 auto;
+  width: 20%;
+  fill: none;
+  stroke: #55697a;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+/* 充电档位：25W / 10W / OFF，测试人员手动选择 */
+.wdcm-gears {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+
+.wdcm-gear {
+  flex: 1 1 0;
+  height: 34px;
+  border: 1px solid #24343f;
+  border-radius: 6px;
+  background: #0b141b;
+  color: #7e8fa0;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.wdcm-gear:hover {
+  border-color: #33505e;
+  color: #a7b8c6;
+}
+
+.wdcm-gear.is-sel {
+  border-color: rgba(47, 213, 195, 0.6);
+  background: rgba(47, 213, 195, 0.12);
+  color: var(--accent);
+  box-shadow: 0 0 14px rgba(47, 213, 195, 0.22), inset 0 0 10px rgba(47, 213, 195, 0.08);
+}
+
+/* 0 档 = 关闭，选中时用中性冷灰，不占用告警色 */
+.wdcm-gear.is-off.is-sel {
+  border-color: rgba(133, 149, 167, 0.55);
+  background: rgba(133, 149, 167, 0.12);
+  color: #c3d0dc;
+  box-shadow: none;
+}
+
+/* Phone As Key：握手状态栏 */
+.wdcm-pak {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.wdcm-pak-state {
+  padding: 5px 12px;
+  border: 1px solid #24343f;
+  border-radius: 5px;
+  background: #0b141b;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.wdcm-pak-state.is-ok {
+  border-color: rgba(47, 213, 195, 0.6);
+  background: rgba(47, 213, 195, 0.12);
+  color: var(--accent);
+  box-shadow: 0 0 14px rgba(47, 213, 195, 0.2);
+}
+
+.wdcm-pak-state.is-fail {
+  border-color: rgba(228, 99, 92, 0.6);
+  background: rgba(228, 99, 92, 0.12);
+  color: var(--danger);
+  box-shadow: 0 0 14px rgba(228, 99, 92, 0.2);
+}
+
 /* ---------- 布局锁定说明 ---------- */
 /* 页面已锁定在 1266×1036 设计画布内，不再随视口宽高变化，
    因此原先基于视口的响应式断点已移除，避免缩放后排版漂移。 */
+
+/* ============================================================
+   WCCM-BT Testing —— 蓝牙耳机音频（WCCM 音频部分）
+   覆盖 .swm-page > 骨架的规则一律用合并类并放在文件末尾，
+   否则会被前面更靠后的通用规则吃掉特异性。
+
+   垂直预算（内容区 654）：
+     radio 216 + zones 148 + 注入条 42 + gap 3×9 = 433
+     trace flex:1 1 auto → 约 221
+   ============================================================ */
+
+.swm-page > .swm-stage.bta-radio {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex: 0 0 216px;
+  padding: 10px 14px 12px;
+  gap: 8px;
+}
+
+.bta-head {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bta-head-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 输出设备摘要（授权 / 刷新 / 状态）：原来 Audio Downlink 卡里的内容 */
+.bta-head-route {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding-left: 1px;
+}
+
+.bta-out-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: #55707f;
+  white-space: nowrap;
+}
+
+.bta-out-count.is-on {
+  color: #bcd6e4;
+}
+
+.bta-radio-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 10px;
+}
+
+/* ---------- 扫描控制 ---------- */
+.bta-scan {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 9px;
+  border: 1px solid #1a2632;
+  border-radius: 10px;
+  background: rgba(9, 14, 20, 0.7);
+  min-height: 0;
+}
+
+.bta-scan-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: #6f8fa3;
+}
+
+.bta-scan-state b {
+  font-weight: 600;
+}
+
+/* ---------- 设备列表 ---------- */
+.bta-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 5px 9px 2px;
+  border: 1px solid #1a2632;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(15, 23, 31, 0.9), rgba(9, 14, 20, 0.9));
+}
+
+.bta-list-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding-bottom: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7fa0b0;
+}
+
+.bta-list-head em {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #47637a;
+}
+
+.bta-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #24323f transparent;
+}
+
+.bta-rows::-webkit-scrollbar {
+  width: 6px;
+}
+
+.bta-rows::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: #24323f;
+}
+
+.bta-list-empty {
+  padding: 10px 2px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: #47637a;
+}
+
+.bta-row {
+  display: grid;
+  align-items: center;
+  gap: 6px;
+  height: 27px;
+  border-bottom: 1px dashed rgba(38, 56, 71, 0.6);
+}
+
+.bta-row:last-child {
+  border-bottom: none;
+}
+
+.bta-list.is-found .bta-row {
+  grid-template-columns: 30px minmax(0, 1fr) 74px 58px 42px;
+}
+
+.bta-list.is-paired .bta-row {
+  grid-template-columns: 30px minmax(0, 1fr) 52px 48px 92px 58px;
+}
+
+.bta-row-id {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: #2fd5c3;
+}
+
+.bta-row-name {
+  font-size: 10.5px;
+  color: #cfe3ee;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.bta-row-type {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.02em;
+  color: #6f8fa3;
+}
+
+.bta-row-rssi {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  text-align: right;
+  color: #8fa8b8;
+}
+
+/* ---------- 状态标签 ---------- */
+.bta-chip {
+  justify-self: start;
+  padding: 1px 6px;
+  border: 1px solid rgba(74, 98, 114, 0.5);
+  border-radius: 999px;
+  font-size: 9.5px;
+  letter-spacing: 0.03em;
+  color: #7d97a8;
+  background: rgba(74, 98, 114, 0.12);
+  white-space: nowrap;
+}
+
+.bta-chip.is-busy {
+  color: #d9a04a;
+  border-color: rgba(217, 160, 74, 0.45);
+  background: rgba(217, 160, 74, 0.12);
+}
+
+.bta-chip.is-ok {
+  color: #2fd5c3;
+  border-color: rgba(47, 213, 195, 0.4);
+  background: rgba(47, 213, 195, 0.1);
+}
+
+.bta-chip.is-live {
+  color: #6ff0e0;
+  border-color: rgba(47, 213, 195, 0.6);
+  background: rgba(47, 213, 195, 0.18);
+  box-shadow: 0 0 8px rgba(47, 213, 195, 0.22);
+}
+
+.bta-chip.is-bad {
+  color: #e05a4f;
+  border-color: rgba(224, 90, 79, 0.5);
+  background: rgba(224, 90, 79, 0.12);
+}
+
+.bta-zone-select {
+  width: 92px;
+  height: 22px;
+  padding: 0 4px;
+  border: 1px solid #223140;
+  border-radius: 6px;
+  background: #0d1620;
+  color: #cfe3ee;
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+.bta-zone-select:disabled {
+  color: #456073;
+  opacity: 0.7;
+}
+
+/* ---------- ② Zone 挂载视图 ---------- */
+.bta-zones {
+  flex: 0 0 148px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.bta-ch {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 0;
+  padding: 7px 10px 8px;
+  border: 1px solid #1a2632;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(15, 23, 31, 0.95), rgba(9, 14, 20, 0.95));
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.bta-ch.is-ok {
+  border-color: rgba(47, 213, 195, 0.3);
+}
+
+.bta-ch.is-live {
+  border-color: rgba(47, 213, 195, 0.5);
+  box-shadow: 0 0 12px rgba(47, 213, 195, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.bta-ch.is-idle {
+  border-style: dashed;
+  border-color: #202d3a;
+}
+
+.bta-ch-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.bta-ch-num {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: #2fd5c3;
+}
+
+.bta-ch-seat {
+  font-size: 10.5px;
+  color: #9fb9c8;
+  margin-right: auto;
+}
+
+.bta-ch-seat em {
+  font-family: var(--mono);
+  font-size: 8.5px;
+  font-style: normal;
+  letter-spacing: 0.04em;
+  color: #55707f;
+}
+
+.bta-ch-dev {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: #bcd6e4;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.bta-ch-dev.is-none {
+  color: #456073;
+}
+
+.bta-vol {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.bta-vol-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.bta-vol-val {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: #8fa8b8;
+}
+
+.bta-vol-val em {
+  font-style: normal;
+  font-size: 9px;
+  color: #47637a;
+}
+
+.bta-vol-val strong {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2fd5c3;
+  margin-left: 3px;
+}
+
+.bta-vol-val.is-mute strong {
+  color: #d9a04a;
+}
+
+.bta-ch-stats {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: #55707f;
+}
+
+.bta-ch-stats b {
+  font-weight: 600;
+  color: #a8c4d4;
+}
+
+.bta-ch-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.bta-hint {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.03em;
+  color: #556a7b;
+}
+
+.bta-ch-actions .bta-hint {
+  margin-left: auto;
+}
+
+/* ---------- 通用按钮 ---------- */
+.bta-btn {
+  padding: 4px 10px;
+  border: 1px solid #223140;
+  border-radius: 7px;
+  background: rgba(20, 30, 40, 0.9);
+  color: #a8c4d4;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: border-color 0.14s ease, color 0.14s ease;
+}
+
+.bta-btn:hover:not(:disabled) {
+  border-color: rgba(47, 213, 195, 0.5);
+  color: #d6f5ef;
+}
+
+.bta-btn:disabled,
+.bta-btn.is-primary:disabled,
+.bta-btn.is-warn:disabled {
+  color: #3f5768;
+  border-color: #1a2632;
+  background: rgba(20, 30, 40, 0.9);
+  cursor: not-allowed;
+}
+
+.bta-btn.is-primary {
+  border-color: rgba(47, 213, 195, 0.55);
+  color: #6ff0e0;
+  background: rgba(47, 213, 195, 0.12);
+}
+
+.bta-btn.is-warn {
+  border-color: rgba(217, 160, 74, 0.5);
+  color: #d9a04a;
+}
+
+.bta-btn.is-mini {
+  padding: 2px 7px;
+  font-size: 10px;
+  border-radius: 6px;
+}
+
+/* ---------- 分隔线（头栏第二行：音频输出 | 模块链路） ---------- */
+.bta-strip-sep {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: #223140;
+}
+
+/* ---------- ④ CDC Trace ---------- */
+.sws-trace.bta-trace {
+  flex: 1 1 auto;
+  min-height: 150px;
+}
+
+.bta-trace .sws-trace-empty {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bta-clear {
+  margin-left: auto;
+}
+
+.bta-frames {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bta-frame {
+  display: grid;
+  grid-template-columns: 60px 26px 132px 232px minmax(0, 1fr);
+  gap: 6px;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(28, 42, 54, 0.55);
+  font-size: 10.5px;
+  align-items: baseline;
+}
+
+.bta-frame:last-child {
+  border-bottom: none;
+}
+
+.bta-t {
+  color: #4d6577;
+}
+
+.bta-dir {
+  font-weight: 700;
+  color: #7d97a8;
+}
+
+.bta-frame.is-tx .bta-dir {
+  color: #2fd5c3;
+}
+
+.bta-frame.is-rx .bta-dir {
+  color: #d9a04a;
+}
+
+.bta-hex {
+  color: #6f8fa3;
+  white-space: nowrap;
+}
+
+.bta-name {
+  color: #cfe3ee;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.bta-frame.is-tx .bta-name {
+  color: #9be7db;
+}
+
+.bta-detail {
+  color: #7d97a8;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ---------- ① 头部全局下发条（ANC / Limiter / OS Time） ---------- */
+.bta-globals {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  margin-right: 10px;
+}
+
+.bta-gsel {
+  height: 22px;
+  padding: 0 4px;
+  border: 1px solid #223140;
+  border-radius: 6px;
+  background: #0d1620;
+  color: #cfe3ee;
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+/* ---------- ③ 音频路由状态（头栏里一行） ---------- */
+.bta-audio-state {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.02em;
+  color: #7d97a8;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 560px;
+}
+
+.bta-audio-state.is-ok {
+  color: #2fd5c3;
+}
+
+.bta-audio-state.is-warn {
+  color: #d9a04a;
+}
+
+.bta-audio-state.is-bad {
+  color: #e05a4f;
+}
+
+/* 头栏第二行右端：与真实模块的串口链路 */
+.bta-link {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+
+.bta-link.is-idle {
+  color: #6b8496;
+}
+
+.bta-link.is-busy {
+  color: #d9a04a;
+}
+
+.bta-link.is-ok {
+  color: #2fd5c3;
+}
+
+.bta-link.is-bad {
+  color: #e05a4f;
+}
+
+.cwcm-enable:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.bta-file {
+  display: none;
+}
+
+/* 每条音轨自己的播放行：播放 / 停止 / 进度 / 时间 */
+.bta-ch-play {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 22px;
+}
+
+.bta-ch-seek {
+  flex: 1 1 auto;
+  width: auto;
+  margin: 0;
+  min-width: 0;
+}
+
+.bta-ch-time {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: #8fa8b8;
+}
+
+/* 选文件按钮同时显示这一路的文件名 */
+.bta-btn.is-file {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.bta-btn.is-file.is-on {
+  color: #bcd6e4;
+  border-color: rgba(47, 213, 195, 0.35);
+}
+
+/* Zone 卡片里的声卡绑定 */
+.bta-ch-sink {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 22px;
+  padding: 0 3px;
+  border: 1px solid #223140;
+  border-radius: 6px;
+  background: #0d1620;
+  color: #a8c4d4;
+  font-family: var(--mono);
+  font-size: 9px;
+}
+
+.bta-ch-actions .bta-btn {
+  flex: 0 0 auto;
+}

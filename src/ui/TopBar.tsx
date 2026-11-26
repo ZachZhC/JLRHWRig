@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 
-export type TestTab = 'window' | 'swm' | 'sws' | 'cwcm' | 'wdcm';
+export type TestTab = 'window' | 'swm' | 'sws' | 'cwcm' | 'btaudio' | 'wdcm';
 
 const TABS: { key: TestTab; label: string }[] = [
   { key: 'window', label: 'Windows Testing' },
   { key: 'swm', label: 'SWM Testing' },
   { key: 'sws', label: 'SWS Testing' },
   { key: 'cwcm', label: 'CWCM Testing' },
+  { key: 'btaudio', label: 'WCCM-BT Testing' },
   { key: 'wdcm', label: 'WDCM Testing' },
 ];
 
