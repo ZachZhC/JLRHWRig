@@ -38,9 +38,24 @@ foreach ($name in @("kiosk.sh", "setup-pi.sh")) {
 }
 
 # 3. Compress
+# 不能用 Compress-Archive：它写入的条目路径是反斜杠，Linux 上 unzip 会解出一堆带 \ 的坏文件名。
+# 这里用 ZipArchive 手工写条目，路径统一用 '/'。
 Write-Host "[3/4] Creating zip ..." -ForegroundColor Cyan
 if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
-Compress-Archive -Path (Join-Path $StageDir "window-bench-hmi") -DestinationPath $ZipPath -CompressionLevel Optimal
+Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zip = [System.IO.Compression.ZipFile]::Open($ZipPath, [System.IO.Compression.ZipArchiveMode]::Create)
+try {
+  Get-ChildItem -Path $InnerDir -Recurse -File | ForEach-Object {
+    $rel = $_.FullName.Substring($InnerDir.Length + 1).Replace('\', '/')
+    $entryName = "window-bench-hmi/" + $rel
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+      $zip, $_.FullName, $entryName,
+      [System.IO.Compression.CompressionLevel]::Optimal) | Out-Null
+  }
+} finally {
+  $zip.Dispose()
+}
 
 # 4. Cleanup + report
 Write-Host "[4/4] Cleaning up ..." -ForegroundColor Cyan
