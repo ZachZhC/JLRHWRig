@@ -1833,6 +1833,145 @@ button {
   text-overflow: ellipsis;
 }
 
+/* ---------- Trace 文件导入（DBC / LDF，每页一份） ---------- */
+.trc-input {
+  display: none;
+}
+
+.trc-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  background: rgba(10, 18, 26, 0.35);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: #55707f;
+  min-height: 22px;
+  flex: none;
+}
+
+.trc-file-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #3f5768;
+  flex: none;
+}
+
+.trc-file.is-ready .trc-file-dot {
+  background: #2fd5c3;
+  box-shadow: 0 0 5px #2fd5c3;
+}
+
+.trc-file.is-loading .trc-file-dot {
+  background: #d9a04a;
+  box-shadow: 0 0 5px #d9a04a;
+}
+
+.trc-file.is-error .trc-file-dot {
+  background: #e4635c;
+  box-shadow: 0 0 5px #e4635c;
+}
+
+.trc-file-name {
+  color: #8fb3c4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+  flex: none;
+}
+
+.trc-file.is-empty .trc-file-name {
+  color: #4d6577;
+}
+
+.trc-file-meta {
+  color: #4d6577;
+  white-space: nowrap;
+  flex: none;
+}
+
+.trc-file-warn {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: #d9a04a;
+  cursor: pointer;
+  flex: none;
+}
+
+.trc-file-warn:hover {
+  text-decoration: underline;
+}
+
+.trc-file-notice {
+  color: #d9a04a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.trc-file-err {
+  color: #e4635c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.trc-file-hint {
+  color: #456073;
+  white-space: nowrap;
+}
+
+.trc-file-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 12px;
+  max-height: 66px;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--line-soft);
+  background: rgba(40, 30, 10, 0.18);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: #d9a04a;
+  flex: none;
+}
+
+.trc-file-list li {
+  padding: 1px 0;
+  white-space: pre-wrap;
+}
+
+/* 窄列（Windows 页右侧卡片）里的压缩形态：无背景/边框，夹在卡片头与列表之间 */
+.trc-file.is-compact {
+  padding: 0 0 5px;
+  min-height: 0;
+  border-bottom: 0;
+  background: none;
+  gap: 6px;
+}
+
+.trc-file.is-compact .trc-file-name {
+  max-width: 118px;
+}
+
+.trc-file.is-compact .trc-file-notice,
+.trc-file.is-compact .trc-file-err {
+  max-width: 96px;
+}
+
+.trc-file.is-compact + .trc-file-list {
+  padding: 2px 0 4px;
+  background: none;
+  max-height: 52px;
+}
+
 .sws-switch {
   display: flex;
   flex-direction: column;

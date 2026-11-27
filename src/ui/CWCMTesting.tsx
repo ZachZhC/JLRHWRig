@@ -9,12 +9,17 @@
  *
  * 页面没有任何模拟数据：通道未开就显示未连接，模块没报就显示 —。
  */
-import { useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import cwcmImg from '../assets/cwcm.png';
 import { EL_POWER_OPTIONS, WCCM_CHANNEL, cwcmLink } from '../domain/cwcmLink';
 import { BACKLIGHT_FAULT } from '../domain/cwcm';
+import { getLdfStore } from '../domain/ldfStore';
+import { TraceFileBar } from './TraceFileBar';
 
 const ACCENT = '#2fd5c3';
+
+/** CWCM 的 LDF：默认用随包的 ldf/cwcm.ldf，页面导入过的优先 */
+const ldf = getLdfStore('cwcm');
 
 /** 四个 USB 输出口的接插件外框（相对原图百分比，按像素标定） */
 const USB_PORTS = [
@@ -30,6 +35,12 @@ function fmtTime(ts: number) {
 
 export function CWCMTesting() {
   const snap = useSyncExternalStore(cwcmLink.subscribe, cwcmLink.getSnapshot);
+  const ldfSnap = useSyncExternalStore(ldf.subscribe, ldf.getSnapshot);
+  const fileRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    ldf.init();
+  }, []);
+
   const live = snap.link === 'open';
   const ready = live && snap.running;
   const fault = snap.req.backlightIntensity === BACKLIGHT_FAULT;
@@ -241,7 +252,28 @@ export function CWCMTesting() {
           >
             Clear
           </button>
+          <button
+            type="button"
+            className="ghost"
+            title={ldfSnap.status === 'ready' ? `Loaded: ${ldfSnap.fileName}` : 'Load an LDF for this page'}
+            onClick={() => fileRef.current?.click()}
+          >
+            Input LDF
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".ldf,text/plain"
+            className="trc-input"
+            onChange={(e) => {
+              const el = e.currentTarget;
+              const f = el.files?.[0];
+              if (f) ldf.loadFile(f);
+              el.value = '';
+            }}
+          />
         </div>
+        <TraceFileBar snap={ldfSnap} hint="Input LDF to decode frames" emptyLabel="No LDF" />
         <div className="sws-trace-body">
           {snap.frames.length === 0 ? (
             <div className="sws-trace-empty">

@@ -7,7 +7,7 @@
  *   3. 把原始报文交给 Trace 显示
  *
  * 注意：这里绝不 DELETE 通道 —— 通道可能属于台架项目，关掉会影响别的页。
- * SWS 与 SWM 两页共用这一个连接，因为它们看的是同一条总线。
+ * SWS / SWM / WDCM 三页共用这一个连接，因为它们看的是同一条总线。
  */
 
 const API = '/api/v1';
@@ -152,7 +152,7 @@ class CanLinkStore {
     this.snap = { ...this.snap, status: 'connecting', error: '' };
     this.emit();
 
-    const url = `${API}/messages/stream?channel=${encodeURIComponent(selector)}&from=0`; // TEMP-VERIFY
+    const url = `${API}/messages/stream?channel=${encodeURIComponent(selector)}&from=now`;
     const es = new EventSource(url);
     this.es = es;
 

@@ -1,7 +1,18 @@
 # AGENTS.md — JLR 硬件测试台架 HMI 开发说明
 
 > 本文件是**写给接手的 AI / 开发者**的交接文档。请先完整读一遍再动代码。
-> 最后更新：2026-11-27（**WCCM-BT 头栏第一行整行删除**：模块名 / ANC / Limiter / Sync Time / Read State /
+> 最后更新：2026-11-27（**LIN 两页加 LDF 运行时导入**：Windows 与 CWCM 的 LIN Trace 各加
+> `Input LDF`（存 localStorage，key `hmi.ldf.v1.<page>`），CWCM 默认用随包的
+> `public/ldf/cwcm.ldf`（用户提供，17 帧 / 97 信号 / 1 条"16 个 Diag*_L15 信号未用"提示），
+> Windows 页暂无默认；载入后自检条报 帧数/信号数/警告数，坏行/未支持段逐条列出；
+> DBC 与 LDF 共用一个载体 `domain/fileStore.ts` + `ui/TraceFileBar.tsx`；
+> **LDF 目前只载入不自检点亮**，0x26/0x27 行为完全不变）
+> 2026-11-27（**SWS/SWM 接 BMCLI 真实 CAN + 每页 DBC 运行时导入**：Trace 头栏加
+> 通道下拉 / 刷新 / 连接·断开 / RX·TX 计数，原始帧按时戳·方向·ID·DLC·数据滚动显示，断开保留已收行，
+> 两页共用一条订阅且页面从不开关通道；**每页独立 DBC**：Trace 最右 `Input DBC` 导入、存 localStorage，
+> 没导入时用 `public/dbc/<page>.dbc`，载入后自检条报 报文/信号/警告数（坏行逐条列出）；
+> **解码与点灯仍未做**，`Input DBC` 目前只负责把 DBC 载进来）
+> 2026-11-27（**WCCM-BT 头栏第一行整行删除**：模块名 / ANC / Limiter / Sync Time / Read State /
 > BT Enable 都不要；头栏只剩 `Output … Module …` 一行。协议动作仍在 `bta` 里保留，页面不再暴露；
 > **全站 UI 文案改英文**，供英国领导演示；报错/诊断文本可留中文；`<html lang="en">`；
 > 因英文更长调整了 Telemetry 名称列宽、SWS 监视卡标题、BT 已配对行状态列/按钮列宽、Zone 声卡下拉选项文案；
@@ -122,6 +133,15 @@ src/
     audioout.ts        浏览器真实出声：枚举输出设备 / setSinkId 切路 / Zone↔声卡绑定（存 localStorage）
     cwcm.ts            CWCM/WCCM 的 LIN15 编解码唯一目录：0x26 打包、0x27 解析与零件号/序列号分块拼接
     cwcmLink.ts        CWCM LIN 链路（BMCLI Web）：开主通道、充电开关（唤醒脉冲 / 70 ms 周期 / 0x3C 休眠）、Trace 快照
+    canLink.ts         CAN 链路（BMCLI Web）：列已开 CAN 通道、SSE 订阅原始帧、200 帧缓冲 + 100 ms 批量通知
+    dbc.ts             DBC 解析：BO_/SG_/VAL_，Intel/Motorola、有符号、factor/offset；mux、SG_MUL_VAL_、
+                       CAN FD（VFrameFormat）、SIG_VALTYPE_ 都会进警告；坏行不静默丢
+    dbcStore.ts        每页一份的 DBC：导入的存 localStorage（hmi.dbc.v1.<page>），没导入时加载 public/dbc/<page>.dbc
+    ldf.ts             LDF 解析：Nodes/Signals/Diagnostic_signals/Frames/Diagnostic_frames/Schedule_tables，
+                       Signal_encoding_types + Signal_representation 合并进信号（factor/offset/unit/枚举）；
+                       未支持的段、坏行、引用不存在的信号都进警告；没写起始位的信号按顺序低位先行推断
+    ldfStore.ts        每页一份的 LDF（window / cwcm）：key hmi.ldf.v1.<page>；CWCM 默认 public/ldf/cwcm.ldf
+    fileStore.ts       DBC/LDF 共用的「运行时文件」载体：恢复/导入/默认文件/20MB 限制/字号超限提示
   ui/
     TopBar.tsx         Tab 定义 + 时钟（新增页面先改这里）
     WindowPage.tsx     车窗页（含键盘映射）
@@ -129,12 +149,16 @@ src/
     CarFigure.tsx      中央车辆俯视图（只是一个 <img> + 文字）
     SWMTesting.tsx     方向盘页
     SWSTesting.tsx     拨杆页
-    CWCMTesting.tsx    中央有线充电页
+    CanTrace.tsx       两页共用的 CAN Trace：通道下拉 / 连接 / 原始帧 / Input DBC 与自检条
+    TraceFileBar.tsx   Trace 头栏下的文件自检条（DBC/LDF 共用；`compact` = Windows 窄列形态）
+    CWCMTesting.tsx    中央有线充电页（LIN Trace 头栏带 Input LDF）
     BTAudioTesting.tsx 蓝牙耳机音频页
-    WDCMTesting.tsx    无线充电页（实物图 + NFC 动画 + 档位/Phone As Key，状态暂用 useState）
-    EventLog.tsx       通用 Trace 面板（LIN / CAN 共用）
+    WDCMTesting.tsx    无线充电页（实物图 + NFC 动画 + 档位/Phone As Key，状态暂用 useState；CAN Trace 与 DBC 导入已接）
+    EventLog.tsx       车窗页 LIN Trace 面板（头栏带 Input LDF，紧凑自检条）
     Telemetry.tsx      车窗页右侧状态条
 deploy/                台架部署脚本（Windows / 树莓派 kiosk）
+public/dbc/            默认 DBC 投放口：swm.dbc / sws.dbc / wdcm.dbc（改完刷新即可，不用重新构建）
+public/ldf/            默认 LDF 投放口：cwcm.ldf（用户提供的 BCMA LIN15 LDF；window.ldf 未提供）
 ```
 
 ---
@@ -209,11 +233,54 @@ class BenchStore {
   **按键高亮只能用 `drive`**，用 `moving` 会在减速阶段错误闪亮。
 - 键盘：`Q/W/E/R` = UP，`A/S/D/F` = DOWN，按住 `Shift` = 自动档。
   **每个页面的键盘监听都要先判断 `activeTab`**，否则跨页误触发。
+- 右侧 LIN Trace（`ui/EventLog.tsx`）头栏有 `Input LDF`（2026-11-27）：按页存
+  `hmi.ldf.v1.window`，**没有默认 LDF**（等用户提供 `public/ldf/window.ldf`）；
+  自检条是窄列压缩形态，只报 帧/信号/警告数。这里记录的仍是**前端状态机事件**
+  （按开关产生的事件），LDF 尚未参与解码。
 
 ### SWM / SWS
 
 - 实物图热区用**百分比坐标**标定（相对图片宽高），不要写死 px。
 - 状态机在 `domain/swm.ts` / `domain/sws.ts`，UI 只读快照。
+
+#### CAN 链路（2026-11-27 起，`domain/canLink.ts` + `ui/CanTrace.tsx`）
+
+- 各页共用**一条** SSE 订阅（同一条总线），切 Tab 不断；通道由 BMCLI 侧打开（台架项目 / 命令行），
+  页面只列「已打开的 CAN 通道」并订阅，**从不 open / DELETE 通道**。
+- 只显示真实帧：时戳（本地到达）、方向、ID、DLC、数据；断开后已收的行保留，计数不清（Clear 只清行）。
+- 没连上/没数据时显示提示（无通道 / 未连接 / 等待帧），**不造数据、不自动连接**。
+- BMCLI 的 SSE 客户端上限是 8 条，泄漏会报 `sse_limit`；调试后可用 `bmcli web stop/start` 清干净。
+
+#### DBC 导入（每页一份，2026-11-27）
+
+- SWM / SWS / WDCM 用的不是同一份 DBC，所以**按页独立**：Trace 头栏最右 `Input DBC`，
+  导入的文件按页存 localStorage（`hmi.dbc.v1.<page>`），两页互不串。
+- 没导入过 → 尝试 `public/dbc/<page>.dbc`；没有就显示 `No DBC`（不点亮任何键）。
+- 自检条在 Trace 头栏下方：文件名 / N msg / M sig / 警告数；点警告展开逐条（中文诊断）。
+  坏行、VAL_ 引用不存在的报文/信号、mux、SG_MUL_VAL_、CAN FD、SIG_VALTYPE_ 都会列出来。
+- 解析在 `domain/dbc.ts`，只承诺 DBC 的标准子集；不认识的段跳过，但**不允许静默丢弃定义**。
+- 导入失败（0 条 BO_）时保留上一份能用的 DBC，只把失败原因显示出来。
+- 信号 → 键的映射表**仍写在代码里**（只在加信号/改语义时动，DBC 换版不需要改代码）。
+- 目前**只载入不自检点亮**：解码 + 点亮（Stage 2）还没做，等 DBC 到位、映射表确认后再接。
+
+#### LDF 导入（LIN 两页：Windows / CWCM，2026-11-27）
+
+- Windows 页（`ui/EventLog.tsx`）与 CWCM 页（`ui/CWCMTesting.tsx`）的 LIN Trace 头栏都有 `Input LDF`，
+  按页存 localStorage（`hmi.ldf.v1.window` / `hmi.ldf.v1.cwcm`），互不串。
+- **CWCM 有默认**：`public/ldf/cwcm.ldf`（用户提供的 BCMA_A_LIN15 LDF，只随包发布，不写进代码）。
+  没导入过就显示它，自检条标 `(default)`；导入过的优先，清掉 localStorage 就回到默认。
+- **Windows 页暂无默认 LDF**（`public/ldf/window.ldf` 没提供），没导入时显示 `No LDF`。
+- 自检条与 DBC 共用：`domain/fileStore.ts` 管文件生命周期，`ui/TraceFileBar.tsx` 管显示
+  （CWCM 用常规形态、Windows 右侧窄列用 `compact` 形态）。载入后报 `N frames · M signals` + 警告数。
+- 解析在 `domain/ldf.ts`：Nodes / Signals / **Diagnostic_signals**（只有 名称,位数,初始值）/
+  Frames / Diagnostic_frames（0x3C/0x3D）/ Schedule_tables / Signal_encoding_types + Signal_representation
+  （factor/offset/unit/枚举合并进信号）。帧内没写起始位的信号按出现顺序低位先行推断。
+- 警告只报真正的问题：引用了不存在的信号/编码、重复定义、信号超出帧长、未出现在任何帧中的信号（汇总一条）、
+  文件里出现的不支持段（Event_triggered / Sporadic / Composite）。`cwcm.ldf` 正常只报 1 条：
+  16 个 `Diag*_L15` 信号不参与任何帧（LDF 原样如此，不是解析问题）。
+- 导入失败（0 帧）保留上一份能用的 LDF，只显示失败原因；默认文件解析失败静默保持 `No LDF`。
+- **目前只载入不解码**：CWCM 的 0x26/0x27 收发行为完全没变（仍按 `domain/cwcm.ts` 的固定布局），
+  LDF 只是把描述文件载进来，信号解码/Trace 行内展开是后续阶段。
 
 ### CWCM（`ui/CWCMTesting.tsx` + `domain/cwcm.ts` + `domain/cwcmLink.ts`）
 
@@ -282,6 +349,8 @@ class BenchStore {
   台架是否有真实 LIN 口、能否发唤醒脉冲要等 XL2 到货确认。
 - Trace 与 WCCM-BT 页同款（`.bta-frames` 复用）：`TX` 下发 / `RX` 模块应答 / `未应答` 计数，
   右上角还有丢帧数；清空按钮不清计数。
+- 头栏右端多一个 `Input LDF`（2026-11-27）：默认加载 `public/ldf/cwcm.ldf`，导入的按页存 localStorage；
+  载入后头栏下方自检条报 `17 frames · 97 signals`。**只载入不解码**，0x26/0x27 的收发与布局完全不变。
 
 USB 输出口：下方中间 3 个 + 右下 1 个，共 4 个，**不可单独控制**。页面上的高亮就是插座 LED：
 **常亮、不呼吸**，亮度（`opacity`）跟随 `BacklightIntensity`，`BacklightStatus=0`、端口被 0x26 关断
@@ -418,7 +487,8 @@ USB 输出口：下方中间 3 个 + 右下 1 个，共 4 个，**不可单独�
 - **Phone As Key**：一行 `Handshake` 状态栏，取值 `PENDING / SUCCEEDED / FAILED`，
   默认 PENDING。判定逻辑未定，点击状态栏在三种值间循环以便演示。
   红/琥珀/青都在 `:root`（新增 `--danger: #e4635c` 表示硬失败）。
-- CAN Trace 仍是空占位。
+- CAN Trace 与 SWM/SWS 共用 `ui/CanTrace.tsx`（通道 / 连接 / 原始帧 / `Input DBC`），
+  DBC 按页独立（`wdcm.dbc`），目前只载入不自检点亮。
 
 ---
 
@@ -500,6 +570,9 @@ USB 输出口：下方中间 3 个 + 右下 1 个，共 4 个，**不可单独�
 | 以为"没有 LIN 时 LED 亮 100%" | 那是 2026-04-28 供应商流程图的旧结论，已被 2026-11-26 休眠策略覆盖。**没有 LIN 就没有唤醒**，模块不进工作态，充电停 + LED 灭（2026-11-27 用户确认） |
 | 零件号拼出来缺字符 / 乱序 | 0x27 每帧只带 2 个字符 + 块号，必须按 `WCCMPartNoBlkNo` 0–11 归位拼 24 字符 |
 | 页面上的 PB/SPB 电压谁给 | 台架（BCMA 角色）自己供，ESIS 里是 BCMA 发布；默认 140 = 14.0 V，别指望模块上报 |
+| LDF 里 `MasterReqB0` 报"未定义" | 诊断信号在**单独的 `Diagnostic_signals` 段**（只有 名称,位数,初始值），不在 `Signals` 段；`ldf.ts` 两段都读 |
+| LDF 调度表解析出一堆 `FreeFormat` | 自动寻址表里 `FreeFormat { 0x7F, … } delay 20 ms;` 是**帧条目**不是表；只取 `Schedule_tables` 的顶层块（`topLevelBlocks`） |
+| LDF 自检报"16 个信号未用" | `Diag*_L15` 那组在 `cwcm.ldf` 里只被 `Signal_representation` 引用、不进任何帧，是文件原样；不是解析漏了 |
 
 ---
 
@@ -518,6 +591,11 @@ USB 输出口：下方中间 3 个 + 右下 1 个，共 4 个，**不可单独�
 
 ## 12. 待办（Next）
 
+- [ ] **默认 DBC**：用户后续提供，放 `public/dbc/swm.dbc` / `sws.dbc` / `wdcm.dbc`（页面没导入过时用它们）。
+      收到前页面显示 `No DBC`，不点亮任何键
+- [ ] **Windows 页默认 LDF**：`public/ldf/window.ldf` 还没提供；收到前页面显示 `No LDF`（CWCM 已有默认 `cwcm.ldf`）
+- [ ] **SWS/SWM 点亮（Stage 2）**：用导入的 DBC 解码 → 信号值 → 映射表（信号名+取值 → 热区），
+      超时全灭、发错键亮另一键（WDCM 的点亮也随这一阶段一起上）
 - [ ] WDCM 接真实 CAN 信号：充电档位（25W/15W/5W/0）下发、NFC 检测触发、FOD 异物检测上报、Phone As Key 握手判定
       —— 这几项目前都是组件内 `useState`，届时建 `src/domain/wdcm.ts` 状态机替换
 - [ ] **WCCM-BT 页真机联调**：模拟已全删，页面动作全部走 `serialLink`，但只在假串口上验过状态机。
@@ -542,7 +620,8 @@ USB 输出口：下方中间 3 个 + 右下 1 个，共 4 个，**不可单独�
       再考虑补 Normal_L5 的 0x21–0x25（那五帧在 LDF 里是别的节点发布的）
 - [ ] **CWCM LIN Trace 升级**（2026-11-27 评估，**决定等 XL2 后再做**）：现状是 200 行 ≈ 7 s、
       时戳只到秒、无原始字节列/自动滚动/过滤/导出。升级项：毫秒时戳 + Δt、DLC + 数据 hex 列、
-      自动滚动 + 暂停、按 ID/方向过滤、1000 行、CSV 导出；以及 LDF 信号解析
-      （LDF 含 0x21–0x27 + 0x3C、81 个信号，可 raw 导入前端运行时解析，做行内展开 + 信号监视表）；
+      自动滚动 + 暂停、按 ID/方向过滤、1000 行、CSV 导出；以及**用已导入的 LDF 解码**
+      （LDF 已在页面上载入：0x21–0x27 + 0x3C/0x3D，17 帧 / 97 信号，`domain/ldf.ts` 已解析出
+      factor/offset/枚举，差信号解码 + 行内展开 + 信号监视表）；
       进阶可选：用 BMCLI `/messages/stream`（SSE，硬件时戳 + gap 事件）替代现在的软件时戳同步事务
 - [ ] 接真实硬件：树莓派 GPIO（Windows）、CAN 收发（LIN 已走 XL2 方案）

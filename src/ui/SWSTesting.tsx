@@ -240,7 +240,7 @@ export function SWSTesting() {
       </section>
 
       {/* ===== CAN Trace 窗口（全宽，底部） ===== */}
-      <CanTrace />
+      <CanTrace page="sws" />
     </div>
   );
 }

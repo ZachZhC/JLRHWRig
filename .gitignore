@@ -7,3 +7,5 @@ dist/
 Thumbs.db
 window-bench-hmi-pi.zip
 vibe_images/
+# BMCLI 在本目录生成的台架本地配置（含本机路径/设备绑定，不进仓库）
+.bmcli/

@@ -1,5 +1,7 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { canLink, type CanChannel, type CanFrame } from '../domain/canLink';
+import { getDbcStore, type DbcPage } from '../domain/dbcStore';
+import { TraceFileBar } from './TraceFileBar';
 
 function pad2(n: number) {
   return String(n).padStart(2, '0');
@@ -54,9 +56,12 @@ function FrameRow({ f }: { f: CanFrame }) {
   );
 }
 
-export function CanTrace() {
+export function CanTrace({ page }: { page: DbcPage }) {
   const s = useSyncExternalStore(canLink.subscribe, canLink.getSnapshot);
+  const dbc = getDbcStore(page);
+  const d = useSyncExternalStore(dbc.subscribe, dbc.getSnapshot);
   const connected = s.status === 'open' || s.status === 'connecting';
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (s.channels.length === 0 && !s.listError) canLink.refreshChannels();
@@ -64,10 +69,9 @@ export function CanTrace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // TEMP-VERIFY: 截图用自动连接，验完删除
   useEffect(() => {
-    if (s.selected && s.status === 'idle') canLink.connect();
-  }, [s.selected, s.status]);
+    dbc.init();
+  }, [dbc]);
 
   return (
     <div className="sws-trace">
@@ -116,8 +120,30 @@ export function CanTrace() {
           <button type="button" className="bta-btn is-mini" onClick={() => canLink.clearFrames()}>
             Clear
           </button>
+          <button
+            type="button"
+            className="bta-btn is-mini"
+            title={d.status === 'ready' ? `Loaded: ${d.fileName}` : 'Load a DBC for this page'}
+            onClick={() => fileRef.current?.click()}
+          >
+            Input DBC
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".dbc,text/plain"
+            className="trc-input"
+            onChange={(e) => {
+              const el = e.currentTarget;
+              const f = el.files?.[0];
+              if (f) dbc.loadFile(f);
+              el.value = '';
+            }}
+          />
         </div>
       </div>
+
+      <TraceFileBar snap={d} hint="Input DBC to decode signals" emptyLabel="No DBC" />
 
       <div className="sws-trace-body">
         {s.frames.length === 0 ? (

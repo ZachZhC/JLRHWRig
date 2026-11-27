@@ -187,7 +187,7 @@ export function SWMTesting() {
       </section>
 
       {/* CAN Trace 窗口 */}
-      <CanTrace />
+      <CanTrace page="swm" />
     </div>
   );
 }

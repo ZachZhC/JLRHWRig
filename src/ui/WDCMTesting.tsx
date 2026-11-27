@@ -13,6 +13,7 @@
 import { useEffect, useState } from 'react';
 import wdcmImg from '../assets/wdcm.png';
 import coinImg from '../assets/uk-one-pound.png';
+import { CanTrace } from './CanTrace';
 
 const ACCENT = '#2fd5c3';
 
@@ -185,16 +186,7 @@ export function WDCMTesting() {
       </section>
 
       {/* CAN Trace */}
-      <div className="sws-trace">
-        <div className="sws-trace-head">
-          <span className="sws-trace-dot" />
-          <span className="sws-trace-title">CAN Trace</span>
-          <span className="sws-trace-sub">· frame monitor (signals pending)</span>
-        </div>
-        <div className="sws-trace-body">
-          <div className="sws-trace-empty">Waiting for CAN signals…</div>
-        </div>
-      </div>
+      <CanTrace page="wdcm" />
     </div>
   );
 }
