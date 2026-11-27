@@ -26,17 +26,17 @@ import { serialLink } from '../domain/serial';
 /** EnumBTDeviceState 的 11 个状态 */
 const STATE_TEXT: Record<DevState, string> = {
   NULL: '—',
-  NOTPAIRED: '未配对',
-  DISCOVERING: '扫描中',
-  PAIRING: '配对中',
-  PAIRED: '已配对',
-  CONNECTING: '连接中',
-  CONNECTED: '已连接',
-  DISCONNECTING: '断开中',
-  DISCONNECTED: '已断开',
-  UNPAIRING: '解除中',
-  UNPAIRED: '已解除',
-  FAULT: '故障',
+  NOTPAIRED: 'Not paired',
+  DISCOVERING: 'Discovering',
+  PAIRING: 'Pairing',
+  PAIRED: 'Paired',
+  CONNECTING: 'Connecting',
+  CONNECTED: 'Connected',
+  DISCONNECTING: 'Disconnecting',
+  DISCONNECTED: 'Disconnected',
+  UNPAIRING: 'Unpairing',
+  UNPAIRED: 'Unpaired',
+  FAULT: 'Fault',
 };
 
 const STATE_TONE: Record<DevState, 'idle' | 'busy' | 'ok' | 'live' | 'bad'> = {
@@ -58,7 +58,7 @@ const ANC_OPTIONS: AncState[] = ['OFF', 'ON', 'AMBIENT'];
 const LIMITER_OPTIONS: LimiterState[] = ['OFF', 'ON'];
 
 function fmtTime(ts: number) {
-  return new Date(ts).toLocaleTimeString('zh-CN', { hour12: false });
+  return new Date(ts).toLocaleTimeString('en-GB', { hour12: false });
 }
 
 function hex(v: number, digits = 4) {
@@ -119,7 +119,7 @@ export function BTAudioTesting() {
   return (
     <div className="swm-page">
       {/* ===== ① 扫描 / 发现 / 配对 ===== */}
-      <section className="swm-stage bta-radio" aria-label="蓝牙扫描与配对">
+      <section className="swm-stage bta-radio" aria-label="Bluetooth scan and pairing">
         <div className="bta-head">
           <div className="bta-head-main">
             <span className="cwcm-module-name">
@@ -131,13 +131,13 @@ export function BTAudioTesting() {
                 className="bta-gsel"
                 value={snap.anc ?? ''}
                 disabled={!live}
-                aria-label="全局 ANC"
+                aria-label="Global ANC"
                 onChange={(e) => {
                   const v = e.target.value as AncState;
                   if (v) bta.setAnc(v);
                 }}
               >
-                <option value="">{live ? '— 未报' : '—'}</option>
+                <option value="">{live ? '— not reported' : '—'}</option>
                 {ANC_OPTIONS.map((o) => (
                   <option key={o} value={o}>
                     {o}
@@ -149,13 +149,13 @@ export function BTAudioTesting() {
                 className="bta-gsel"
                 value={snap.limiter ?? ''}
                 disabled={!live}
-                aria-label="全局限幅器"
+                aria-label="Global limiter"
                 onChange={(e) => {
                   const v = e.target.value as LimiterState;
                   if (v) bta.setLimiter(v);
                 }}
               >
-                <option value="">{live ? '— 未报' : '—'}</option>
+                <option value="">{live ? '— not reported' : '—'}</option>
                 {LIMITER_OPTIONS.map((o) => (
                   <option key={o} value={o}>
                     {o}
@@ -166,19 +166,19 @@ export function BTAudioTesting() {
                 type="button"
                 className="bta-btn is-mini"
                 disabled={!live}
-                title="向模块发当前时间（0x2051）"
+                title="Send the current time to the module (0x2051)"
                 onClick={() => bta.syncTime()}
               >
-                对时
+                Sync Time
               </button>
               <button
                 type="button"
                 className="bta-btn is-mini"
                 disabled={!live}
-                title="读蓝牙状态 + 已配对列表（0x2003 / 0x3017）"
+                title="Read BT state + paired list (0x2003 / 0x3017)"
                 onClick={() => bta.readAll()}
               >
-                读状态
+                Read State
               </button>
             </div>
             <button
@@ -187,10 +187,10 @@ export function BTAudioTesting() {
               disabled={!live}
               onClick={() => bta.setEnabled(!snap.enabled)}
               aria-pressed={snap.enabled === true}
-              title="下发 0x2001；开关状态以模块上报为准"
+              title="Send 0x2001; the switch state follows module reports"
             >
               <span className="cwcm-enable-dot" />
-              <span className="cwcm-enable-label">蓝牙使能</span>
+              <span className="cwcm-enable-label">BT Enable</span>
               <strong className="cwcm-enable-state">
                 {snap.enabled === null ? '—' : snap.enabled ? 'ON' : 'OFF'}
               </strong>
@@ -198,62 +198,62 @@ export function BTAudioTesting() {
           </div>
 
           <div className="bta-head-route">
-            <span className="pw-label">输出</span>
+            <span className="pw-label">Output</span>
             <span className={`bta-out-count ${aud.canRoute ? 'is-on' : ''}`}>
-              {aud.devices.length} 路{aud.canRoute ? '' : '（未授权）'}
+              {aud.devices.length} routes{aud.canRoute ? '' : ' (not authorized)'}
             </span>
             {!aud.canRoute && (
               <button
                 type="button"
                 className="bta-btn is-mini is-primary"
-                title="允许一次麦克风权限，系统才会给出声卡名字"
+                title="Allow microphone access once so the system reveals device names"
                 onClick={() => void audioOut.grant()}
               >
-                授权
+                Authorize
               </button>
             )}
             <button
               type="button"
               className="bta-btn is-mini"
-              title="重新枚举一次输出设备"
+              title="Re-enumerate output devices"
               onClick={() => void audioOut.refresh()}
             >
-              刷新
+              Refresh
             </button>
             <span className={`bta-audio-state is-${aud.tone}`} title={aud.status}>
               {aud.status}
             </span>
             <span className="bta-strip-sep" />
-            <span className="pw-label">模块</span>
+            <span className="pw-label">Module</span>
             {live ? (
               <>
-                <b className="bta-link is-ok" title={`TX ${link.tx} 帧 / RX ${link.rx} 帧`}>
-                  COM 已连
+                <b className="bta-link is-ok" title={`TX ${link.tx} frames / RX ${link.rx} frames`}>
+                  COM connected
                 </b>
                 <button
                   type="button"
                   className="bta-btn is-mini"
                   onClick={() => void serialLink.disconnect()}
                 >
-                  断开
+                  Disconnect
                 </button>
               </>
             ) : (
               <>
                 <b
                   className={`bta-link is-${link.state === 'error' ? 'bad' : link.state === 'opening' ? 'busy' : 'idle'}`}
-                  title={link.note || '串口是独占的：连之前先关掉供应商上位机'}
+                  title={link.note || 'The COM port is exclusive: close the vendor tool before connecting'}
                 >
-                  {link.note || (link.state === 'unsupported' ? '浏览器不支持' : '未连接')}
+                  {link.note || (link.state === 'unsupported' ? 'Browser unsupported' : 'Not connected')}
                 </b>
                 <button
                   type="button"
                   className="bta-btn is-mini is-primary"
                   disabled={link.state === 'opening'}
                   onClick={() => void connectLink()}
-                  title="打开 WCCM 的 COM 口（先关掉供应商上位机，串口不能被两边同时占）"
+                  title="Open the WCCM COM port (close the vendor tool first — the port cannot be shared)"
                 >
-                  连接
+                  Connect
                 </button>
               </>
             )}
@@ -268,12 +268,12 @@ export function BTAudioTesting() {
               disabled={!live || snap.discovery === 'DISCOVERING' || snap.enabled === false}
               title={
                 snap.enabled === false
-                  ? '模块上报蓝牙是关闭的，扫描会被拒 —— 先点右上角「蓝牙使能」'
-                  : '向模块发 SetBTRadioDiscoveryRequest（0x0011）'
+                  ? 'Module reports Bluetooth off — scans will be rejected; press "BT Enable" first'
+                  : 'Send SetBTRadioDiscoveryRequest (0x0011) to the module'
               }
               onClick={() => bta.startDiscovery()}
             >
-              开始扫描
+              Start Scan
             </button>
             <button
               type="button"
@@ -281,36 +281,36 @@ export function BTAudioTesting() {
               disabled={!live || snap.discovery !== 'DISCOVERING'}
               onClick={() => bta.cancelDiscovery()}
             >
-              取消扫描
+              Cancel Scan
             </button>
             <div className="bta-scan-state">
               <span>Discovery</span>
               <b className={`bta-chip is-${snap.discovery === 'DISCOVERING' ? 'busy' : 'idle'}`}>
-                {live ? DISCOVERY_STATE_TEXT[snap.discovery] : '未连接'}
+                {live ? DISCOVERY_STATE_TEXT[snap.discovery] : 'Not connected'}
               </b>
             </div>
             <p className="bta-hint" title={snap.note}>
               {snap.note ||
                 (live
                   ? snap.enabled === false
-                    ? '蓝牙是关的：先点「蓝牙使能」，等显示 ON 再扫描'
-                    : '设备与 btdevice_id 由模块上报'
-                  : '未连接模块，下面的操作全部不可用')}
+                    ? 'Bluetooth is off: press "BT Enable", wait for ON, then scan'
+                    : 'Devices and btdevice_id are reported by the module'
+                  : 'Module not connected — the actions below are unavailable')}
             </p>
           </div>
 
           <div className="bta-list is-found">
             <div className="bta-list-head">
-              发现的设备 <em>NotifyBTDiscoveredDevice {hex(CDC.discDevice.msgId)}</em>
+              Discovered <em>NotifyBTDiscoveredDevice {hex(CDC.discDevice.msgId)}</em>
             </div>
             <ul className="bta-rows">
               {found.length === 0 && (
                 <li className="bta-list-empty">
                   {!live
-                    ? '未连接模块'
+                    ? 'Module not connected'
                     : snap.discovery === 'DISCOVERING'
-                      ? '扫描中，等模块上报…'
-                      : '暂无新设备 —— 点「开始扫描」'}
+                      ? 'Scanning, waiting for module…'
+                      : 'No new devices — press "Start Scan"'}
                 </li>
               )}
               {found.map((d) => (
@@ -325,7 +325,7 @@ export function BTAudioTesting() {
                     disabled={!live}
                     onClick={() => bta.pair(d.id)}
                   >
-                    配对
+                    Pair
                   </button>
                 </li>
               ))}
@@ -334,7 +334,7 @@ export function BTAudioTesting() {
 
           <div className="bta-list is-paired">
             <div className="bta-list-head">
-              已配对设备{' '}
+              Paired devices{' '}
               <em>
                 Connect {hex(CDC.connect.msgId)} · Attach {hex(CDC.attach.msgId)}
               </em>
@@ -342,7 +342,7 @@ export function BTAudioTesting() {
             <ul className="bta-rows">
               {paired.length === 0 && (
                 <li className="bta-list-empty">
-                  {live ? '模块还没上报已配对设备' : '未连接模块'}
+                  {live ? 'Module has not reported paired devices yet' : 'Module not connected'}
                 </li>
               )}
               {paired.map((d) => {
@@ -360,17 +360,17 @@ export function BTAudioTesting() {
                       disabled={!live || busy}
                       onClick={() => (connected ? bta.disconnect(d.id) : bta.connect(d.id))}
                     >
-                      {connected ? '断开' : '连接'}
+                      {connected ? 'Disconnect' : 'Connect'}
                     </button>
                     <select
                       className="bta-zone-select"
                       value={d.ch ?? ''}
                       disabled={!live || !connected}
-                      aria-label={`id=${d.id} 挂载 Zone`}
+                      aria-label={`id=${d.id} attach zone`}
                       onChange={(e) => bta.attach(d.id, Number(e.target.value))}
                     >
                       <option value="" disabled>
-                        {connected ? '挂载到…' : '需先连接'}
+                        {connected ? 'Attach to…' : 'Connect first'}
                       </option>
                       {ZONES.map((z) => (
                         <option key={z.ch} value={z.ch}>
@@ -384,7 +384,7 @@ export function BTAudioTesting() {
                       disabled={!live || connected || busy}
                       onClick={() => bta.unpair(d.id)}
                     >
-                      取消配对
+                      Unpair
                     </button>
                   </li>
                 );
@@ -395,7 +395,7 @@ export function BTAudioTesting() {
       </section>
 
       {/* ===== ② 4 个 Zone 的挂载视图 ===== */}
-      <section className="bta-zones" aria-label="Zone 挂载状态">
+      <section className="bta-zones" aria-label="Zone attachment state">
         {ZONES.map((z) => {
           const d = snap.devices.find((x) => x.ch === z.ch);
           const lane = aud.lanes[z.ch];
@@ -407,12 +407,12 @@ export function BTAudioTesting() {
                   {z.seat} <em>{z.zoneName}</em>
                 </span>
                 <span className={`bta-chip is-${d ? (d.playing ? 'live' : 'ok') : 'idle'}`}>
-                  {d ? (d.playing ? '播放中' : '已挂载') : '未挂载'}
+                  {d ? (d.playing ? 'Playing' : 'Attached') : 'Not attached'}
                 </span>
               </div>
 
               <div className={`bta-ch-dev ${d ? '' : 'is-none'}`}>
-                {d ? `id=${d.id} · ${d.name}` : '— 模块没报挂载 —'}
+                {d ? `id=${d.id} · ${d.name}` : '— no attachment reported —'}
               </div>
 
               {d && (
@@ -433,7 +433,7 @@ export function BTAudioTesting() {
                     step={1}
                     value={d.volume ?? 0}
                     disabled={!live || d.volume === null}
-                    aria-label={`Ch${z.ch} 音量`}
+                    aria-label={`Ch${z.ch} volume`}
                     onChange={(e) => bta.setVolume(d.id, Number(e.target.value))}
                   />
                 </div>
@@ -456,10 +456,10 @@ export function BTAudioTesting() {
                   className="bta-ch-sink"
                   value={aud.zoneSink[z.ch] ?? ''}
                   disabled={!aud.canRoute}
-                  aria-label={`Ch${z.ch} 绑定的声卡`}
+                  aria-label={`Ch${z.ch} output device`}
                   onChange={(e) => audioOut.bindZone(z.ch, e.target.value)}
                 >
-                  <option value="">{aud.canRoute ? '未绑声卡' : '先授权'}</option>
+                  <option value="">{aud.canRoute ? 'Unbound' : 'Authorize'}</option>
                   {sinkGroups.map((g) => (
                     <optgroup key={g.key} label={g.title}>
                       {g.items.map((s) => (
@@ -472,7 +472,7 @@ export function BTAudioTesting() {
                   {aud.zoneSink[z.ch] &&
                     !sinkGroups.some((g) => g.items.some((s) => s.id === aud.zoneSink[z.ch])) && (
                       <option value={aud.zoneSink[z.ch]}>
-                        {`已绑：${aud.devices.find((d) => d.id === aud.zoneSink[z.ch])?.label ?? '设备不在了'}`}
+                        {`Bound: ${aud.devices.find((d) => d.id === aud.zoneSink[z.ch])?.label ?? 'device gone'}`}
                       </option>
                     )}
                 </select>
@@ -488,19 +488,19 @@ export function BTAudioTesting() {
                 <button
                   type="button"
                   className={`bta-btn is-mini is-file ${lane.hasFile ? 'is-on' : ''}`}
-                  title={lane.hasFile ? `Ch${z.ch}：${lane.fileName}` : '给这一路单独选一个音频文件'}
+                  title={lane.hasFile ? `Ch${z.ch}: ${lane.fileName}` : 'Choose an audio file for this channel only'}
                   onClick={() => fileRefs.current[z.ch]?.click()}
                 >
-                  {lane.hasFile ? lane.fileName : '选文件'}
+                  {lane.hasFile ? lane.fileName : 'Choose file'}
                 </button>
                 <button
                   type="button"
                   className={`bta-btn is-mini ${d?.muted ? 'is-warn' : ''}`}
                   disabled={!live || !d}
-                  title="发 0x2021 静音/取消静音；静音状态以模块上报为准"
+                  title="Send 0x2021 mute/unmute; mute state follows module reports"
                   onClick={() => d && bta.setMuted(d.id, !d.muted)}
                 >
-                  {d?.muted ? '取消静音' : '静音'}
+                  {d?.muted ? 'Unmute' : 'Mute'}
                 </button>
               </div>
 
@@ -510,10 +510,10 @@ export function BTAudioTesting() {
                   type="button"
                   className={`bta-btn is-mini ${lane.playing ? '' : 'is-primary'}`}
                   disabled={!lane.hasFile || !aud.zoneSink[z.ch]}
-                  title={aud.zoneSink[z.ch] ? '只放/停这一路' : '先把这一路绑到某一路声卡，免得从电脑默认输出跑出声'}
+                  title={aud.zoneSink[z.ch] ? 'Play/stop this channel only' : 'Bind this channel to an output first so audio does not leak to the default device'}
                   onClick={() => audioOut.toggle(z.ch)}
                 >
-                  {lane.playing ? '暂停' : '播放'}
+                  {lane.playing ? 'Pause' : 'Play'}
                 </button>
                 <button
                   type="button"
@@ -521,7 +521,7 @@ export function BTAudioTesting() {
                   disabled={!lane.hasFile}
                   onClick={() => audioOut.stop(z.ch)}
                 >
-                  停止
+                  Stop
                 </button>
                 <input
                   className="bl-range bta-ch-seek"
@@ -531,7 +531,7 @@ export function BTAudioTesting() {
                   step={1}
                   value={Math.round(lane.position)}
                   disabled={!lane.hasFile}
-                  aria-label={`Ch${z.ch} 播放进度`}
+                  aria-label={`Ch${z.ch} playback position`}
                   onChange={(e) => audioOut.seek(z.ch, Number(e.target.value))}
                 />
                 <span className="bta-ch-time">
@@ -549,8 +549,8 @@ export function BTAudioTesting() {
           <span className="sws-trace-dot" />
           <span className="sws-trace-title">CDC Trace</span>
           <span className="sws-trace-sub">
-            TX＝下发 · RX＝模块上报 · TX {link.tx} / RX {link.rx}
-            {link.bad ? ` · 丢弃 ${link.bad} 字节` : ''}
+            TX = request · RX = module report · TX {link.tx} / RX {link.rx}
+            {link.bad ? ` · dropped ${link.bad} bytes` : ''}
           </span>
           <button
             type="button"
@@ -558,15 +558,15 @@ export function BTAudioTesting() {
             onClick={() => bta.clearFrames()}
             disabled={snap.frames.length === 0}
           >
-            清空
+            Clear
           </button>
         </div>
         <div className="sws-trace-body">
           {snap.frames.length === 0 ? (
             <div className="sws-trace-empty">
               {live
-                ? '已连模块，等它上报…（连上时已自动发对时 / 读蓝牙状态 / 读配对列表）'
-                : '未连接模块 —— 头栏第二行「模块 · 连接」，连之前先关掉供应商上位机'}
+                ? 'Module connected, waiting for reports… (time sync / BT state / paired list were sent on connect)'
+                : 'Module not connected — use "Module · Connect" on the second header row; close the vendor tool first'}
             </div>
           ) : (
             <ul className="bta-frames">

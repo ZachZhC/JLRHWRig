@@ -5,14 +5,14 @@ export function Telemetry({ doors }: { doors: DoorSnapshot[] }) {
   return (
     <section className="card telemetry">
       <div className="card-head">
-        <h2>车窗状态</h2>
-        <span className="tag">实时</span>
+        <h2>Window Status</h2>
+        <span className="tag">LIVE</span>
       </div>
 
       <div className="tele-rows">
         {doors.map((door) => {
           const position = Math.round(door.position);
-          const state = door.moving ? (door.auto ? '自动' : '动作中') : '静止';
+          const state = door.moving ? (door.auto ? 'AUTO' : 'MOVING') : 'IDLE';
           return (
             <div className="tele-row" key={door.id}>
               <span className="tele-id">{door.id}</span>
@@ -28,7 +28,7 @@ export function Telemetry({ doors }: { doors: DoorSnapshot[] }) {
       </div>
 
       <p className="card-note">
-        按住开关持续升降 · 同向 0.4 s 内二次按下进入自动 · 自动运行中再次按键立即停止
+        Hold switch to move · second press within 0.4 s engages auto · press again while auto to stop
       </p>
     </section>
   );

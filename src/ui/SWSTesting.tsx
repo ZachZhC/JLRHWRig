@@ -2,6 +2,7 @@ import { useState, useSyncExternalStore } from 'react';
 import { SWSController, LED_COLORS, type LedColor, type SWSSnapshot } from '../domain/sws';
 import swsLeft from '../assets/sws_left.png';
 import swsRight from '../assets/sws_right.png';
+import { CanTrace } from './CanTrace';
 
 const sws = new SWSController();
 
@@ -16,11 +17,11 @@ interface Hotspot {
 /** SWSL 左侧热点（基于图标连通域中心精确定位） */
 const SWSL_HOTSPOTS: Hotspot[] = [
   // 方向键
-  { id: 'sl-up',     label: '上',      x: 45.6, y: 41.8, size: 36 },
-  { id: 'sl-down',   label: '下',      x: 46.0, y: 71.9, size: 36 },
-  { id: 'sl-left',   label: '左',      x: 31.9, y: 57.0, size: 36 },
-  { id: 'sl-right',  label: '右',      x: 59.5, y: 56.4, size: 36 },
-  { id: 'sl-center', label: '确认',    x: 46.4, y: 57.0, size: 40 },
+  { id: 'sl-up',     label: 'Up',      x: 45.6, y: 41.8, size: 36 },
+  { id: 'sl-down',   label: 'Down',    x: 46.0, y: 71.9, size: 36 },
+  { id: 'sl-left',   label: 'Left',    x: 31.9, y: 57.0, size: 36 },
+  { id: 'sl-right',  label: 'Right',   x: 59.5, y: 56.4, size: 36 },
+  { id: 'sl-center', label: 'Confirm', x: 46.4, y: 57.0, size: 40 },
   // 右侧三键
   { id: 'sl-voice',     label: 'Voice',     x: 74.6, y: 38.3, size: 38 },
   { id: 'sl-favourite', label: 'Favourite', x: 74.6, y: 56.5, size: 38 },
@@ -118,9 +119,9 @@ export function SWSTesting() {
   return (
     <div className="sws-page">
       {/* 左半：SWSL */}
-      <section className="sws-col" aria-label="SWSL 左侧开关">
+      <section className="sws-col" aria-label="SWSL left switch">
         <div className="sws-switch">
-          <div className="sws-switch-head"><span className="sws-dot" style={{ background: '#2fd5c3' }} /> SWSL · 左侧</div>
+          <div className="sws-switch-head"><span className="sws-dot" style={{ background: '#2fd5c3' }} /> SWSL · Left</div>
           <div className="sws-img-wrap">
             <img src={swsLeft} alt="SWSL" className="sws-img" draggable={false} />
             <div
@@ -161,10 +162,10 @@ export function SWSTesting() {
           <MonitorPanel title="Light Bar">
             <LedMonitor color={snap.swslLed} />
           </MonitorPanel>
-          <MonitorPanel title="Cluster Menu Control">
+          <MonitorPanel title="Cluster Menu">
             <DpadMonitor dpad={snap.swslDpad} />
           </MonitorPanel>
-          <MonitorPanel title="Infotainment Control">
+          <MonitorPanel title="Infotainment">
             <RowMonitor items={[
               { k: 'Voice', v: snap.swslVoice },
               { k: 'Favourite', v: snap.swslFavourite },
@@ -175,9 +176,9 @@ export function SWSTesting() {
       </section>
 
       {/* 右半：SWSR */}
-      <section className="sws-col" aria-label="SWSR 右侧开关">
+      <section className="sws-col" aria-label="SWSR right switch">
         <div className="sws-switch">
-          <div className="sws-switch-head"><span className="sws-dot" style={{ background: '#f2b24c' }} /> SWSR · 右侧</div>
+          <div className="sws-switch-head"><span className="sws-dot" style={{ background: '#f2b24c' }} /> SWSR · Right</div>
           <div className="sws-img-wrap">
             <img src={swsRight} alt="SWSR" className="sws-img" draggable={false} />
             <div
@@ -239,16 +240,7 @@ export function SWSTesting() {
       </section>
 
       {/* ===== CAN Trace 窗口（全宽，底部） ===== */}
-      <div className="sws-trace">
-        <div className="sws-trace-head">
-          <span className="sws-trace-dot" />
-          <span className="sws-trace-title">CAN Trace</span>
-          <span className="sws-trace-sub">· 报文监控（待接入信号）</span>
-        </div>
-        <div className="sws-trace-body">
-          <div className="sws-trace-empty">等待 CAN 信号接入…</div>
-        </div>
-      </div>
+      <CanTrace />
     </div>
   );
 }

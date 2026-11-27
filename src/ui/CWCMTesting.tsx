@@ -25,7 +25,7 @@ const USB_PORTS = [
 ];
 
 function fmtTime(ts: number) {
-  return new Date(ts).toLocaleTimeString('zh-CN', { hour12: false });
+  return new Date(ts).toLocaleTimeString('en-GB', { hour12: false });
 }
 
 export function CWCMTesting() {
@@ -46,23 +46,23 @@ export function CWCMTesting() {
 
   const linkText =
     snap.link === 'open'
-      ? 'LIN 已连接'
+      ? 'LIN connected'
       : snap.link === 'connecting'
-        ? '连接中…'
+        ? 'Connecting…'
         : snap.link === 'error'
-          ? '连接失败'
-          : 'LIN 未连接';
+          ? 'Link failed'
+          : 'LIN disconnected';
 
   return (
     <div className="swm-page">
       {/* ===== 上半：CWCM 实物图 + 链路状态 ===== */}
-      <section className="swm-stage cwcm-stage" aria-label="CWCM USB 充电模块视图">
+      <section className="swm-stage cwcm-stage" aria-label="CWCM USB charging module view">
         <div className="cwcm-head">
           <span className="cwcm-module-name">CWCM - Central Wired Charging Module</span>
           <div className="cwcm-head-actions">
             <span
               className={`cwcm-link-state ${live ? 'is-open' : snap.link === 'error' ? 'is-err' : ''}`}
-              title={snap.linkError ?? `通道 ${WCCM_CHANNEL} · 19.2 kbps · 主节点`}
+              title={snap.linkError ?? `Channel ${WCCM_CHANNEL} · 19.2 kbps · master`}
             >
               {linkText}
             </span>
@@ -73,7 +73,7 @@ export function CWCMTesting() {
               disabled={snap.link === 'connecting'}
             >
               <span className="cwcm-enable-dot" />
-              <span className="cwcm-enable-label">{live ? '断开' : '连接'}</span>
+              <span className="cwcm-enable-label">{live ? 'Disconnect' : 'Connect'}</span>
             </button>
             <button
               type="button"
@@ -84,13 +84,13 @@ export function CWCMTesting() {
               aria-checked={snap.running}
               title={
                 !live
-                  ? '先连接 LIN 通道'
+                  ? 'Connect the LIN channel first'
                   : snap.running
-                    ? '充电中：主节点按 70 ms 调度 0x26 / 0x27，端口按信号开关'
-                    : '关闭充电：发送 0x3C 休眠（充电停 · LED 灭）'
+                    ? 'Charging: master sends 0x26 / 0x27 every 70 ms, ports follow the signals'
+                    : 'Stop charging: send 0x3C sleep (charging off · LED off)'
               }
             >
-              <span className="cwcm-power-label">充电</span>
+              <span className="cwcm-power-label">Charging</span>
               <span className="cwcm-power-track" aria-hidden="true">
                 <span className="cwcm-power-knob" />
               </span>
@@ -101,7 +101,7 @@ export function CWCMTesting() {
 
         <div className="cwcm-body">
           <div className="cwcm-img-wrap">
-            <img className="cwcm-img" src={cwcmImg} alt="CWCM USB 充电模块" />
+            <img className="cwcm-img" src={cwcmImg} alt="CWCM USB charging module" />
             <div className="swm-overlay">
               {USB_PORTS.map((p) => (
                 <span
@@ -123,7 +123,7 @@ export function CWCMTesting() {
       </section>
 
       {/* ===== 下半：信息 / 控制 ===== */}
-      <section className="swm-monitors cwcm-monitors" aria-label="CWCM 信息与控制">
+      <section className="swm-monitors cwcm-monitors" aria-label="CWCM info and control">
         {/* WCCM 信息回传（0x27） */}
         <div className="monitor" style={{ ['--accent' as any]: ACCENT }}>
           <div className="monitor-head">
@@ -230,8 +230,8 @@ export function CWCMTesting() {
           <span className="sws-trace-dot" />
           <span className="sws-trace-title">LIN Trace</span>
           <span className="sws-trace-sub">
-            TX＝主节点下发 · RX＝WCCM 应答 · TX {snap.tx} / RX {snap.rx}
-            {snap.misses > 0 ? ` · 未应答 ${snap.misses}` : ''}
+            TX = master request · RX = WCCM response · TX {snap.tx} / RX {snap.rx}
+            {snap.misses > 0 ? ` · no reply ${snap.misses}` : ''}
           </span>
           <button
             type="button"
@@ -239,7 +239,7 @@ export function CWCMTesting() {
             onClick={() => cwcmLink.clearFrames()}
             disabled={snap.frames.length === 0}
           >
-            清空
+            Clear
           </button>
         </div>
         <div className="sws-trace-body">
@@ -248,12 +248,12 @@ export function CWCMTesting() {
               {!live
                 ? (snap.link === 'error' && snap.linkError
                     ? snap.linkError
-                    : `未连接 —— 先点「连接」打开 ${WCCM_CHANNEL}（XL2 主节点 19.2 kbps）`)
+                    : `Not connected — press "Connect" to open ${WCCM_CHANNEL} (XL2 master, 19.2 kbps)`)
                 : snap.running
-                  ? 'LIN 通讯中，等待 0x27 应答…'
+                  ? 'LIN active, waiting for 0x27 responses…'
                   : snap.sleeping
-                    ? '模块已休眠（0x3C 已发），把「充电」拨到 ON 恢复'
-                    : '已连接，把「充电」拨到 ON 开始调度'}
+                    ? 'Module asleep (0x3C sent) — set Charging to ON to wake it'
+                    : 'Connected — set Charging to ON to start the schedule'}
             </div>
           ) : (
             <ul className="bta-frames">

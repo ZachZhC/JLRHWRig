@@ -113,13 +113,13 @@ class SerialLink {
       return false;
     }
     if (this.live) return true;
-    this.set('opening', '正在选择串口…');
+    this.set('opening', 'Selecting port…');
     let port: PortLike;
     try {
       port = await api.requestPort();
     } catch (e) {
       const name = (e as Error).name;
-      if (name === 'NotFoundError') this.set('idle', '没选串口');
+      if (name === 'NotFoundError') this.set('idle', 'No port selected');
       else this.set('error', openErrorText(name));
       return false;
     }
@@ -152,7 +152,7 @@ class SerialLink {
       vid != null && pid != null
         ? { text: `${vid.toString(16).padStart(4, '0')}:${pid.toString(16).padStart(4, '0')}` }
         : null;
-    this.set('open', '已连接');
+    this.set('open', 'Connected');
     this.loopDone = this.readLoop(port);
     return true;
   }
@@ -175,7 +175,7 @@ class SerialLink {
       /* 拔线后 close 会抛，忽略 */
     }
     this.snap.usb = null;
-    this.set('idle', '已断开');
+    this.set('idle', 'Disconnected');
   }
 
   private emit(m: CdcMsg, dir: 'TX' | 'RX') {
@@ -227,7 +227,7 @@ class SerialLink {
   async send(key: keyof typeof CDC, payload: Uint8Array = EMPTY): Promise<boolean> {
     const port = this.port;
     if (!this.live || !port?.writable) {
-      this.snap.note = '还没连上模块';
+      this.snap.note = 'Module not connected';
       this.notify();
       return false;
     }
@@ -268,7 +268,7 @@ class SerialLink {
       return false;
     }
     this.snap.tx += 1;
-    this.snap.note = '已连接';
+    this.snap.note = 'Connected';
     this.emit(msg, 'TX');
     this.notify();
     return true;

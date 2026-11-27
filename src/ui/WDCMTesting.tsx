@@ -66,7 +66,7 @@ export function WDCMTesting() {
   return (
     <div className="swm-page">
       {/* ===== 上半：实物图片舞台 ===== */}
-      <section className="swm-stage wdcm-stage" aria-label="WDCM 无线充电模块视图">
+      <section className="swm-stage wdcm-stage" aria-label="WDCM wireless charging module view">
         <div className="wdcm-head">
           <span className="wdcm-module-name">WDCM - Wireless Charging Module</span>
           <button
@@ -74,10 +74,10 @@ export function WDCMTesting() {
             className={`wdcm-enable ${nfc ? 'is-on' : ''}`}
             onClick={() => setNfc((v) => !v)}
             aria-pressed={nfc}
-            title="模拟 NFC 检测（快捷键 N）"
+            title="Simulate NFC detection (hotkey N)"
           >
             <span className="wdcm-enable-dot" />
-            <span className="wdcm-enable-label">NFC 检测</span>
+            <span className="wdcm-enable-label">NFC Detect</span>
             <strong className="wdcm-enable-state">{nfc ? 'DETECTED' : 'IDLE'}</strong>
           </button>
           <button
@@ -85,16 +85,16 @@ export function WDCMTesting() {
             className={`wdcm-enable wdcm-fod-enable ${fod ? 'is-on' : ''}`}
             onClick={() => setFod((v) => !v)}
             aria-pressed={fod}
-            title="模拟 FOD 异物检测（快捷键 F）"
+            title="Simulate FOD detection (hotkey F)"
           >
             <span className="wdcm-enable-dot" />
-            <span className="wdcm-enable-label">FOD 异物检测</span>
+            <span className="wdcm-enable-label">FOD Detect</span>
             <strong className="wdcm-enable-state">{fod ? 'DETECTED' : 'IDLE'}</strong>
           </button>
         </div>
 
         <div className="wdcm-img-wrap">
-          <img className="wdcm-img" src={wdcmImg} alt="WDCM 无线充电模块" />
+          <img className="wdcm-img" src={wdcmImg} alt="WDCM wireless charging module" />
           <div className="swm-overlay">
             <div
               className={`wdcm-coil ${nfc ? 'is-on' : ''} ${fod ? 'is-fod' : ''}`}
@@ -118,7 +118,7 @@ export function WDCMTesting() {
                   <path d="M22.5 5a18 18 0 0 1 0 22" />
                 </svg>
               </div>
-              <span className="nfc-flag">NFC 感应中</span>
+              <span className="nfc-flag">NFC detected</span>
               {/* FOD 图层：金属异物 + 琥珀告警涟漪，DOM 在卡片之后，同开时压在手机上 */}
               <span className="fod-halo" />
               <span className="fod-ripple" />
@@ -127,7 +127,7 @@ export function WDCMTesting() {
               <div className="fod-object">
                 <img className="fod-coin-img" src={coinImg} alt="" aria-hidden="true" />
               </div>
-              <span className="fod-flag">检测到异物 · FOD</span>
+              <span className="fod-flag">Foreign object · FOD</span>
             </div>
           </div>
         </div>
@@ -136,16 +136,16 @@ export function WDCMTesting() {
       {/* ===== 下半：控制台下发 + 状态监控 ===== */}
       <section
         className="swm-monitors"
-        aria-label="WDCM 输入状态"
+        aria-label="WDCM input state"
         style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}
       >
         <div className="monitor" style={{ ['--accent' as any]: ACCENT }}>
           <div className="monitor-head">
             <span className="monitor-dot" />
-            <span className="monitor-title">充电开关 Charging</span>
+            <span className="monitor-title">Charging</span>
           </div>
           <div className="monitor-body">
-            <div className="wdcm-gears" role="radiogroup" aria-label="充电功率档位">
+            <div className="wdcm-gears" role="radiogroup" aria-label="Charging power level">
               {GEARS.map((g) => (
                 <button
                   key={g}
@@ -154,7 +154,7 @@ export function WDCMTesting() {
                   aria-checked={gear === g}
                   className={`wdcm-gear ${gear === g ? 'is-sel' : ''} ${g === 0 ? 'is-off' : ''}`}
                   onClick={() => setGear(g)}
-                  title="测试人员手动选择；仿真信号待接入"
+                  title="Selected manually by the tester; live signal pending"
                 >
                   {g === 0 ? 'OFF' : `${g}W`}
                 </button>
@@ -175,7 +175,7 @@ export function WDCMTesting() {
                 type="button"
                 className={`wdcm-pak-state is-${handshake}`}
                 onClick={() => setHandshake(HANDSHAKE_NEXT[handshake])}
-                title="判定逻辑待信号接入；点击可模拟切换状态"
+                title="Decision logic pending signal; click to cycle the state"
               >
                 {HANDSHAKE_TEXT[handshake]}
               </button>
@@ -189,10 +189,10 @@ export function WDCMTesting() {
         <div className="sws-trace-head">
           <span className="sws-trace-dot" />
           <span className="sws-trace-title">CAN Trace</span>
-          <span className="sws-trace-sub">· 报文监控（待接入信号）</span>
+          <span className="sws-trace-sub">· frame monitor (signals pending)</span>
         </div>
         <div className="sws-trace-body">
-          <div className="sws-trace-empty">等待 CAN 信号接入…</div>
+          <div className="sws-trace-empty">Waiting for CAN signals…</div>
         </div>
       </div>
     </div>

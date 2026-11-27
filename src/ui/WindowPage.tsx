@@ -57,7 +57,7 @@ export function WindowPage() {
 
   return (
     <>
-      <section className="stage" aria-label="四门车窗展开视图">
+      <section className="stage" aria-label="Four-door window stage">
         {DOOR_IDS.map((id) => {
           const door = snapshot.doors.find((item) => item.id === id);
           if (!door) return null;

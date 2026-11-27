@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useRef, useState, useSyncExternalStore } from 'react';
 import { SWMController, type SWMSnapshot } from '../domain/swm';
 import swsImage from '../assets/sws_switch.png';
+import { CanTrace } from './CanTrace';
 
 const swm = new SWMController();
 
@@ -19,31 +20,31 @@ interface Hotspot {
 /** 所有热点 */
 const HOTSPOTS: Hotspot[] = [
   // ===== 右侧怀挡（整体右移）=====
-  { id: 'gear-up1',   label: '怀挡·上1档(N)', x: 88, y: 32, size: 56 },
-  { id: 'gear-up2',   label: '怀挡·上2档(R)', x: 88, y: 20, size: 56 },
-  { id: 'gear-down1', label: '怀挡·下1档(N)', x: 88, y: 62, size: 56 },
-  { id: 'gear-down2', label: '怀挡·下2档(D)', x: 88, y: 74, size: 56 },
-  { id: 'p-btn',      label: 'P 按钮',        x: 96, y: 50, size: 52 },
+  { id: 'gear-up1',   label: 'Up 1 (N)',   x: 88, y: 32, size: 56 },
+  { id: 'gear-up2',   label: 'Up 2 (R)',   x: 88, y: 20, size: 56 },
+  { id: 'gear-down1', label: 'Down 1 (N)', x: 88, y: 62, size: 56 },
+  { id: 'gear-down2', label: 'Down 2 (D)', x: 88, y: 74, size: 56 },
+  { id: 'p-btn',      label: 'P Button',   x: 96, y: 50, size: 52 },
 
   // ===== 左侧组合开关 =====
   // 管柱上方：转向灯·上(右)、远光灯
-  { id: 'turn-up',    label: '转向灯·上(右)', x: 25, y: 18, size: 44 },
-  { id: 'high-beam',  label: '远光灯(推远)', x: 18, y: 18, size: 40 },
+  { id: 'turn-up',    label: 'Turn Right',        x: 25, y: 18, size: 44 },
+  { id: 'high-beam',  label: 'High Beam (push)',  x: 18, y: 18, size: 40 },
 
   // 管柱下方：转向灯·下(左)、超车灯 —— 跟上方"隔岸管柱"而立
-  { id: 'turn-down',  label: '转向灯·下(左)', x: 25, y: 82, size: 44 },
-  { id: 'flash',      label: '超车灯(拉回)', x: 18, y: 88, size: 40 },
+  { id: 'turn-down',  label: 'Turn Left',         x: 25, y: 82, size: 44 },
+  { id: 'flash',      label: 'Flash (pull)',      x: 18, y: 88, size: 40 },
 
   // 雾灯
-  { id: 'fog',        label: '雾灯按钮',    x: 15, y: 35, size: 42 },
+  { id: 'fog',        label: 'Fog Light',   x: 15, y: 35, size: 42 },
 
   // 后雨刮 → 两个档位（上：点刮，下：洗涤）
-  { id: 'rear-wp-light',  label: '后雨刮·点刮',  x: 6, y: 40, size: 38 },
-  { id: 'rear-wp-hard',   label: '后雨刮·洗涤',  x: 6, y: 52, size: 38 },
+  { id: 'rear-wp-light',  label: 'Rear Wiper · Mist', x: 6, y: 40, size: 38 },
+  { id: 'rear-wp-hard',   label: 'Rear Wiper · Wash', x: 6, y: 52, size: 38 },
 
   // 前雨刮 → 两个档位（上：点刮，下：洗涤）
-  { id: 'front-wp-light', label: '前雨刮·点刮',  x: 1, y: 70, size: 38 },
-  { id: 'front-wp-hard',  label: '前雨刮·洗涤',  x: 1, y: 82, size: 38 },
+  { id: 'front-wp-light', label: 'Front Wiper · Mist', x: 1, y: 70, size: 38 },
+  { id: 'front-wp-hard',  label: 'Front Wiper · Wash', x: 1, y: 82, size: 38 },
 ];
 
 /**
@@ -119,61 +120,10 @@ export function SWMTesting() {
     }
   };
 
-  // ===== 键盘快捷键 =====
-  useEffect(() => {
-    const held = new Set<string>();
-    const down = (e: KeyboardEvent) => {
-      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
-      const key = e.key.toLowerCase();
-      // Shift + F/R = 深按（洗涤），普通 F/R = 轻按（点刮）
-      const id = e.shiftKey ? `shift+${key}` : key;
-      if (held.has(id)) return;
-      held.add(id);
-      switch (id) {
-        case 'q':       e.preventDefault(); swm.leverUp1Press(); break;
-        case 'w':       e.preventDefault(); swm.leverUp2Press(); break;
-        case 'a':       e.preventDefault(); swm.leverDown1Press(); break;
-        case 's':       e.preventDefault(); swm.leverDown2Press(); break;
-        case 'e':       e.preventDefault(); swm.pButtonPress(); flashP(); break;
-        case 'arrowleft':  e.preventDefault(); swm.turnDownPress(); break;
-        case 'arrowright': e.preventDefault(); swm.turnUpPress(); break;
-        case 'arrowup':    e.preventDefault(); swm.flashPress(); break;
-        case 'arrowdown':  e.preventDefault(); swm.highBeamPress(); break;
-        case 'f':       e.preventDefault(); swm.frontWiperLightPress(); break;
-        case 'shift+f': e.preventDefault(); swm.frontWiperHardPress(); break;
-        case 'r':       e.preventDefault(); swm.rearWiperLightPress(); break;
-        case 'shift+r': e.preventDefault(); swm.rearWiperHardPress(); break;
-        case 'g':       e.preventDefault(); swm.fogPress(); break;
-      }
-    };
-    const up = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase();
-      const id = e.shiftKey ? `shift+${key}` : key;
-      held.delete(id);
-      switch (id) {
-        case 'q':       swm.leverUp1Release(); break;
-        case 'w':       swm.leverUp2Release(); break;
-        case 'a':       swm.leverDown1Release(); break;
-        case 's':       swm.leverDown2Release(); break;
-        case 'arrowup': swm.flashRelease(); break;
-        case 'f':       swm.frontWiperLightRelease(); break;
-        case 'shift+f': swm.frontWiperHardRelease(); break;
-        case 'r':       swm.rearWiperLightRelease(); break;
-        case 'shift+r': swm.rearWiperHardRelease(); break;
-      }
-    };
-    window.addEventListener('keydown', down);
-    window.addEventListener('keyup', up);
-    return () => {
-      window.removeEventListener('keydown', down);
-      window.removeEventListener('keyup', up);
-    };
-  }, []);
-
   return (
     <div className="swm-page">
       {/* ===== 上半：图片 + 交互热点 ===== */}
-      <section className="swm-stage" aria-label="SWM 组合开关视图">
+      <section className="swm-stage" aria-label="SWM combination switch view">
         <div className="swm-img-wrap">
           <img src={swsImage} alt="Steering Wheel Module Switch" className="swm-img" draggable={false} />
 
@@ -210,59 +160,34 @@ export function SWMTesting() {
       </section>
 
       {/* ===== 下半：状态监控面板 ===== */}
-      <section className="swm-monitors" aria-label="SWM 输入状态">
-        <MonitorPanel title="档位 Gear" accent="#2fd5c3">
+      <section className="swm-monitors" aria-label="SWM input state">
+        <MonitorPanel title="Gear" accent="#2fd5c3">
           <GearMonitor gear={snap.gear} lever={snap.leverGear} />
         </MonitorPanel>
 
-        <MonitorPanel title="转向灯 Turn Signal" accent="#2fd5c3">
+        <MonitorPanel title="Turn Signal" accent="#2fd5c3">
           <SimpleMonitor value={snap.turn} />
         </MonitorPanel>
 
-        <MonitorPanel title="远光 / 超车 Beam" accent="#2fd5c3">
+        <MonitorPanel title="High Beam / Flash" accent="#2fd5c3">
           <SimpleMonitor value={snap.beam} />
         </MonitorPanel>
 
-        <MonitorPanel title="前雨刮 Front Wiper" accent="#2fd5c3">
+        <MonitorPanel title="Front Wiper" accent="#2fd5c3">
           <SimpleMonitor value={snap.frontWiper} />
         </MonitorPanel>
 
-        <MonitorPanel title="后雨刮 Rear Wiper" accent="#2fd5c3">
+        <MonitorPanel title="Rear Wiper" accent="#2fd5c3">
           <SimpleMonitor value={snap.rearWiper} />
         </MonitorPanel>
 
-        <MonitorPanel title="雾灯 Fog Light" accent="#2fd5c3">
+        <MonitorPanel title="Fog Light" accent="#2fd5c3">
           <SimpleMonitor value={snap.fog ? 'on' : 'off'} />
         </MonitorPanel>
       </section>
 
-      {/* 底部键盘提示 */}
-      <footer className="swm-keys">
-        <span>快捷键</span>
-        <Keys k="Q/W"  desc="上1/2档 (N/R)" />
-        <Keys k="A/S"  desc="下1/2档 (N/D)" />
-        <Keys k="E"    desc="P 档" />
-        <Keys k="←/→"  desc="左/右转向灯" />
-        <Keys k="↑"    desc="超车灯 (按住)" />
-        <Keys k="↓"    desc="远光灯" />
-        <Keys k="F"    desc="前雨刮·点刮 (按住)" />
-        <Keys k="⇧F"   desc="前雨刮·洗涤 (按住)" />
-        <Keys k="R"    desc="后雨刮·点刮 (按住)" />
-        <Keys k="⇧R"   desc="后雨刮·洗涤 (按住)" />
-        <Keys k="G"    desc="雾灯" />
-      </footer>
-
       {/* CAN Trace 窗口 */}
-      <div className="sws-trace">
-        <div className="sws-trace-head">
-          <span className="sws-trace-dot" />
-          <span className="sws-trace-title">CAN Trace</span>
-          <span className="sws-trace-sub">· 报文监控（待接入信号）</span>
-        </div>
-        <div className="sws-trace-body">
-          <div className="sws-trace-empty">等待 CAN 信号接入…</div>
-        </div>
-      </div>
+      <CanTrace />
     </div>
   );
 }
@@ -314,7 +239,7 @@ function GearMonitor({ gear, lever }: { gear: string; lever: string }) {
     P: '#f2b24c', R: '#ff6b6b', N: '#9fe9e0', D: '#7aa2ff',
   };
   const leverMap: Record<string, string> = {
-    center: '—', up1: '↗ 轻拨', up2: '⇧ 重拨', down1: '↘ 轻拨', down2: '⇩ 重拨',
+    center: '—', up1: '↗ 1 detent', up2: '⇧ 2 detents', down1: '↘ 1 detent', down2: '⇩ 2 detents',
   };
   const c = gearColors[gear] ?? '#fff';
   return (
@@ -327,11 +252,3 @@ function GearMonitor({ gear, lever }: { gear: string; lever: string }) {
   );
 }
 
-function Keys({ k, desc }: { k: string; desc: string }) {
-  return (
-    <span className="keys-hint">
-      <kbd>{k}</kbd>
-      <span>{desc}</span>
-    </span>
-  );
-}

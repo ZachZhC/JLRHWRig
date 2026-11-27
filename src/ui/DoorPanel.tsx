@@ -67,7 +67,7 @@ export function DoorPanel({ door, onPress, onRelease }: DoorPanelProps) {
               <button
                 type="button"
                 className={`rocker-btn ${closing && !door.auto ? 'is-active' : ''}`}
-                aria-label={`${meta.name} 关窗 手动`}
+                aria-label={`${meta.name} close window manual`}
                 {...bindManual('UP')}
               >
                 <span className="glyph">&#9650;</span>
@@ -76,7 +76,7 @@ export function DoorPanel({ door, onPress, onRelease }: DoorPanelProps) {
               <button
                 type="button"
                 className={`rocker-btn ${closing && door.auto ? 'is-active' : ''}`}
-                aria-label={`${meta.name} 关窗 自动`}
+                aria-label={`${meta.name} close window auto`}
                 {...bindAuto('UP')}
               >
                 <span className="glyph">&#9650;</span>
@@ -87,7 +87,7 @@ export function DoorPanel({ door, onPress, onRelease }: DoorPanelProps) {
               <button
                 type="button"
                 className={`rocker-btn ${opening && !door.auto ? 'is-active' : ''}`}
-                aria-label={`${meta.name} 开窗 手动`}
+                aria-label={`${meta.name} open window manual`}
                 {...bindManual('DOWN')}
               >
                 <span className="glyph">&#9660;</span>
@@ -96,7 +96,7 @@ export function DoorPanel({ door, onPress, onRelease }: DoorPanelProps) {
               <button
                 type="button"
                 className={`rocker-btn ${opening && door.auto ? 'is-active' : ''}`}
-                aria-label={`${meta.name} 开窗 自动`}
+                aria-label={`${meta.name} open window auto`}
                 {...bindAuto('DOWN')}
               >
                 <span className="glyph">&#9660;</span>

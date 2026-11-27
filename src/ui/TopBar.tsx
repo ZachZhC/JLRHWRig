@@ -42,7 +42,7 @@ export function TopBar({ activeTab, onTabChange }: TopBarProps) {
         </div>
       </div>
 
-      <nav className="tabs" role="tablist" aria-label="测试页面切换">
+      <nav className="tabs" role="tablist" aria-label="Test pages">
         {TABS.map((tab) => (
           <button
             key={tab.key}
@@ -59,7 +59,7 @@ export function TopBar({ activeTab, onTabChange }: TopBarProps) {
       <div className="topbar-right">
         <span className="chip">
           <span className="dot" />
-          模拟输入 SIM
+          SIM INPUT
         </span>
         <span className="clock">{time}</span>
       </div>

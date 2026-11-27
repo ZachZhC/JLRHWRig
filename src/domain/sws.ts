@@ -122,10 +122,10 @@ export class SWSController {
 
 export const LED_COLORS: { name: LedColor; hex: string; label: string }[] = [
   { name: 'off',    hex: '#1a2330', label: 'OFF' },
-  { name: 'red',    hex: '#ff4444', label: '红' },
-  { name: 'green',  hex: '#2fd5c3', label: '绿' },
-  { name: 'blue',   hex: '#4d8bff', label: '蓝' },
-  { name: 'yellow', hex: '#f2b24c', label: '黄' },
-  { name: 'purple', hex: '#b56bff', label: '紫' },
-  { name: 'white',  hex: '#ffffff', label: '白' },
+  { name: 'red',    hex: '#ff4444', label: 'Red' },
+  { name: 'green',  hex: '#2fd5c3', label: 'Green' },
+  { name: 'blue',   hex: '#4d8bff', label: 'Blue' },
+  { name: 'yellow', hex: '#f2b24c', label: 'Yellow' },
+  { name: 'purple', hex: '#b56bff', label: 'Purple' },
+  { name: 'white',  hex: '#ffffff', label: 'White' },
 ];

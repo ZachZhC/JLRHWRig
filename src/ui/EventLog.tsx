@@ -1,7 +1,7 @@
 import type { BenchEvent } from '../domain/types';
 
 function formatTime(ts: number) {
-  return new Date(ts).toLocaleTimeString('zh-CN', { hour12: false });
+  return new Date(ts).toLocaleTimeString('en-GB', { hour12: false });
 }
 
 export function EventLog({ events, onClear }: { events: BenchEvent[]; onClear: () => void }) {
@@ -10,12 +10,12 @@ export function EventLog({ events, onClear }: { events: BenchEvent[]; onClear: (
       <div className="card-head">
         <h2>LIN Trace</h2>
         <button type="button" className="ghost" onClick={onClear} disabled={events.length === 0}>
-          清空
+          Clear
         </button>
       </div>
 
       <ul className="log-list">
-        {events.length === 0 && <li className="log-empty">等待开关输入…</li>}
+        {events.length === 0 && <li className="log-empty">Waiting for switch input…</li>}
         {events.map((event) => (
           <li key={event.id} className={`log-item is-${event.tone}`}>
             <span className="log-time">{formatTime(event.ts)}</span>

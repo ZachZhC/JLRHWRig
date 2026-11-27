@@ -45,16 +45,16 @@ export function groupSinks(devices: SinkInfo[], usbTag: string | null): SinkGrou
     module = real.filter((d) => usbTagOf(d.label) !== null);
     exact = false;
   }
-  if (!module.length) return [{ key: 'all', title: '系统输出', items: real }];
+  if (!module.length) return [{ key: 'all', title: 'System outputs', items: real }];
   const groups: SinkGroup[] = [
     {
       key: 'module',
-      title: exact ? `WCCM 输出（USB ${usbTag}）` : 'USB 输出',
+      title: exact ? `WCCM output (USB ${usbTag})` : 'USB outputs',
       items: module,
     },
   ];
   const other = real.filter((d) => !module.includes(d));
-  if (other.length) groups.push({ key: 'other', title: '其他输出（非 WCCM）', items: other });
+  if (other.length) groups.push({ key: 'other', title: 'Other outputs (not WCCM)', items: other });
   return groups;
 }
 
@@ -89,15 +89,15 @@ const CHS = [0, 1, 2, 3];
 const LANE_VOLUME = 0.8;
 
 function sinkErrorHint(name: string) {
-  if (name === 'NotFoundError' || name === 'NotSupportedError') return '设备不在了，点「刷新」';
-  if (name === 'SecurityError' || name === 'NotAllowedError') return '需要 http 打开并授权麦克风';
-  if (name === 'AbortError') return '可能被上位机占用，或系统开了独占模式';
+  if (name === 'NotFoundError' || name === 'NotSupportedError') return 'device is gone — press "Refresh"';
+  if (name === 'SecurityError' || name === 'NotAllowedError') return 'open via http and authorize the microphone';
+  if (name === 'AbortError') return 'possibly held by the vendor tool, or exclusive mode is on';
   return '';
 }
 
 function playFailMessage(name: string) {
-  if (name === 'NotAllowedError') return '没认到真实点击，用鼠标或空格再按一次';
-  if (name === 'AbortError') return '被后一次播放请求打断';
+  if (name === 'NotAllowedError') return 'real click not detected — press again with the mouse or Space';
+  if (name === 'AbortError') return 'interrupted by a later play request';
   return name;
 }
 
@@ -130,7 +130,7 @@ class AudioOutStore {
     zoneSink: { 0: '', 1: '', 2: '', 3: '' },
     lanes: CHS.map(newLane),
     canRoute: false,
-    status: '正在枚举输出设备…',
+    status: 'Enumerating output devices…',
     tone: 'idle',
     _rev: 0,
   };
@@ -167,7 +167,7 @@ class AudioOutStore {
   init() {
     if (typeof window === 'undefined' || !document.createElement) return;
     if (!navigator.mediaDevices?.enumerateDevices) {
-      this.say('浏览器不支持设备枚举，请用 http 打开', 'bad');
+      this.say('Browser cannot enumerate devices; open via http', 'bad');
       return;
     }
     if (!this.els[0]) {
@@ -200,10 +200,10 @@ class AudioOutStore {
     });
     el.addEventListener('ended', () => {
       this.view(ch).playing = false;
-      this.say(`Ch${ch} 播完`, 'idle');
+      this.say(`Ch${ch} finished`, 'idle');
     });
     el.addEventListener('error', () => {
-      if (this.urls[ch]) this.say(`Ch${ch} 文件解码失败或格式不支持`, 'bad');
+      if (this.urls[ch]) this.say(`Ch${ch} file could not be decoded or is unsupported`, 'bad');
     });
     this.els[ch] = el;
   }
@@ -215,7 +215,7 @@ class AudioOutStore {
       const all = await navigator.mediaDevices.enumerateDevices();
       const devices = all
         .filter((d) => d.kind === 'audiooutput')
-        .map((d, i) => ({ id: d.deviceId, label: d.label || `输出 ${i + 1}（未授权，名称隐藏）` }));
+        .map((d, i) => ({ id: d.deviceId, label: d.label || `Output ${i + 1} (not authorized, name hidden)` }));
       this.snap.devices = devices;
       this.snap.canRoute = devices.some((d) => d.id);
       this.snap.zoneSink = readZoneSink();
@@ -223,23 +223,23 @@ class AudioOutStore {
       const stale = CHS.filter((ch) => this.snap.zoneSink[ch] && !ids.has(this.snap.zoneSink[ch]));
       const unbound = CHS.filter((ch) => this.snap.zoneSink[ch] && ids.has(this.snap.zoneSink[ch]));
       if (stale.length) {
-        this.say(`Ch${stale.join('/')} 声卡不在了 · 点刷新`, 'warn');
+        this.say(`Ch${stale.join('/')} output device is gone · press Refresh`, 'warn');
       } else if (!this.snap.canRoute) {
-        this.say('设备名被隐藏，点「授权」允许麦克风', 'warn');
+        this.say('Device names are hidden — press "Authorize" to allow the microphone', 'warn');
       } else if (!unbound.length) {
-        this.say(`找到 ${devices.length} 路输出，四路都还没绑声卡`, 'warn');
+        this.say(`Found ${devices.length} outputs; no channel is bound yet`, 'warn');
       } else {
-        this.say(`找到 ${devices.length} 路输出，已绑 Ch${unbound.join('/Ch')}`, 'ok');
+        this.say(`Found ${devices.length} outputs; bound: Ch${unbound.join('/Ch')}`, 'ok');
       }
     } catch (e) {
-      this.say(`枚举设备失败：${(e as Error).name}`, 'bad');
+      this.say(`Device enumeration failed: ${(e as Error).name}`, 'bad');
     }
   }
 
   /** 输出设备的名字要一次麦克风授权才给，授权完立刻关掉采集 */
   async grant() {
     if (!navigator.mediaDevices?.getUserMedia) {
-      this.say('授权不可用，请用 http://localhost 打开', 'bad');
+      this.say('Authorization unavailable; open via http://localhost', 'bad');
       return;
     }
     try {
@@ -248,7 +248,7 @@ class AudioOutStore {
       await this.refresh();
     } catch (e) {
       const name = (e as Error).name;
-      this.say(name === 'NotAllowedError' ? '授权被拒绝，地址栏右侧可以重新允许' : `授权失败：${name}`, 'bad');
+      this.say(name === 'NotAllowedError' ? 'Permission denied — you can allow it again from the address bar' : `Authorization failed: ${name}`, 'bad');
     }
   }
 
@@ -265,19 +265,19 @@ class AudioOutStore {
     v.position = 0;
     v.duration = 0;
     v.playing = false;
-    this.say(`Ch${ch} 已载入 ${file.name}`, 'ok');
+    this.say(`Ch${ch} loaded ${file.name}`, 'ok');
   }
 
   private applySink(ch: number, id: string) {
     const el = this.els[ch];
     if (!el) return;
     if (typeof el.setSinkId !== 'function') {
-      this.say('浏览器不支持切换输出设备', 'bad');
+      this.say('Browser does not support output switching', 'bad');
       return;
     }
     el.setSinkId(id).catch((e: Error) => {
       const hint = sinkErrorHint(e.name);
-      this.say(`Ch${ch} 切输出失败：${hint || e.name}`, 'bad');
+      this.say(`Ch${ch} output switch failed: ${hint || e.name}`, 'bad');
     });
   }
 
@@ -287,7 +287,7 @@ class AudioOutStore {
     try {
       window.localStorage.setItem(LS_KEY, JSON.stringify(this.snap.zoneSink));
     } catch {
-      this.say('绑定关系存不下（localStorage 被禁）', 'warn');
+      this.say('Binding could not be saved (localStorage disabled)', 'warn');
     }
     if (deviceId) this.applySink(ch, deviceId);
     this.notify();
@@ -297,18 +297,18 @@ class AudioOutStore {
     const el = this.els[ch];
     if (!el) return;
     if (!this.snap.lanes[ch].hasFile) {
-      this.say(`Ch${ch} 还没选文件`, 'warn');
+      this.say(`Ch${ch} has no file yet`, 'warn');
       return;
     }
     if (el.paused) {
-      if (!this.snap.zoneSink[ch]) this.say(`Ch${ch} 没绑声卡，走系统默认输出`, 'warn');
+      if (!this.snap.zoneSink[ch]) this.say(`Ch${ch} has no output bound; using the system default`, 'warn');
       void el
         .play()
-        .then(() => this.say(`Ch${ch} 播放中`, 'ok'))
-        .catch((e: Error) => this.say(`Ch${ch} 播放失败：${playFailMessage(e.name)}`, 'bad'));
+        .then(() => this.say(`Ch${ch} playing`, 'ok'))
+        .catch((e: Error) => this.say(`Ch${ch} play failed: ${playFailMessage(e.name)}`, 'bad'));
     } else {
       el.pause();
-      this.say(`Ch${ch} 暂停`, 'idle');
+      this.say(`Ch${ch} paused`, 'idle');
     }
   }
 
@@ -318,7 +318,7 @@ class AudioOutStore {
     el.pause();
     el.currentTime = 0;
     this.view(ch).position = 0;
-    this.say(`Ch${ch} 停止`, 'idle');
+    this.say(`Ch${ch} stopped`, 'idle');
   }
 
   seek(ch: number, seconds: number) {

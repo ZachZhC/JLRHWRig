@@ -101,13 +101,13 @@ function printable(text: string): string {
 function describeReq(req: WccmReqState): string {
   const intensity =
     req.backlightIntensity === BACKLIGHT_FAULT
-      ? 'Fault(255) · 未下发 PWM'
+      ? 'Fault(255) · PWM not sent'
       : `${req.backlightIntensity} · ${backlightPercent(req.backlightIntensity)}%`;
   const powerMode = POWER_MODE_LIN[req.powerModeLin] ?? `raw ${req.powerModeLin}`;
   return [
-    `背光 ${req.backlightStatus ? 'ON' : 'OFF'} / ${intensity}`,
+    `Backlight ${req.backlightStatus ? 'ON' : 'OFF'} / ${intensity}`,
     `ElPower ${req.elPowerStatus}`,
-    `限功率 ${req.limitedPowerMode ? 'True' : 'False'}`,
+    `LimitedPower ${req.limitedPowerMode ? 'True' : 'False'}`,
     `PB ${batVolt(req.pbBatVolt)}V · SPB ${batVolt(req.spbBatVolt)}V`,
     powerMode,
   ].join(' · ');
@@ -229,7 +229,7 @@ class CwcmLinkStore {
       });
       this.failures = 0;
       this.notify({ link: 'open', linkError: null, tx: 0, rx: 0, misses: 0 });
-      this.push('SYS', '—', 'LINK', `通道 ${WCCM_CHANNEL} 已打开（19.2 kbps · 主节点）`, 'info');
+      this.push('SYS', '—', 'LINK', `Channel ${WCCM_CHANNEL} opened (19.2 kbps · master)`, 'info');
     } catch (error) {
       const message = openErrorMessage(errorText(error));
       this.notify({ link: 'error', linkError: message });
@@ -259,7 +259,7 @@ class CwcmLinkStore {
       await this.settle();
       try {
         await this.sendFrame(SLEEP_FRAME_ID, 'master-write', SLEEP_DATA, 'classic');
-        this.push('TX', '0x3C', 'MasterReq · Sleep', '关闭通道前休眠（NAD 0x00，classic 校验和）', 'tx');
+        this.push('TX', '0x3C', 'MasterReq · Sleep', 'Sleep before closing channel (NAD 0x00, classic checksum)', 'tx');
       } catch (error) {
         this.push('SYS', '0x3C', 'MasterReq · Sleep', `休眠帧发送失败：${transferErrorMessage(errorText(error))}`, 'warn');
       }
@@ -267,7 +267,7 @@ class CwcmLinkStore {
     try {
       await api(`/channels/${encodeURIComponent(WCCM_CHANNEL)}`, { method: 'DELETE' });
       this.notify({ link: 'idle', linkError: null, running: false, sleeping: false });
-      this.push('SYS', '—', 'LINK', '通道已关闭', 'info');
+      this.push('SYS', '—', 'LINK', 'Channel closed', 'info');
     } catch (error) {
       const message = errorText(error);
       this.notify({ link: 'error', linkError: message, running: false });
@@ -288,12 +288,12 @@ class CwcmLinkStore {
       const gen = ++this.generation;
       try {
         await this.sendFrame(0, 'sync-break', undefined, 'enhanced');
-        if (gen === this.generation) this.push('TX', '—', 'Wake-up', '唤醒脉冲（sync-break，主节点开始调度）', 'tx');
+        if (gen === this.generation) this.push('TX', '—', 'Wake-up', 'Wake-up pulse (sync-break, master starts schedule)', 'tx');
       } catch (error) {
         if (gen === this.generation) this.push('SYS', '—', 'Wake-up', `唤醒脉冲失败：${transferErrorMessage(errorText(error))}`, 'warn');
       }
       if (gen !== this.generation || !this.snapshot.running) return;
-      this.push('SYS', '—', 'WAKE', '按调度表开始通讯（等待 150 ms）', 'info');
+      this.push('SYS', '—', 'WAKE', 'Schedule started (waiting 150 ms)', 'info');
       this.timer = window.setTimeout(() => this.tick(gen), WAKE_DELAY_MS);
       return;
     }
@@ -306,7 +306,7 @@ class CwcmLinkStore {
     try {
       await this.sendFrame(SLEEP_FRAME_ID, 'master-write', SLEEP_DATA, 'classic');
       this.notify({ sleeping: true });
-      this.push('TX', '0x3C', 'MasterReq · Sleep', '休眠指令（NAD 0x00，classic 校验和）', 'tx');
+      this.push('TX', '0x3C', 'MasterReq · Sleep', 'Sleep command (NAD 0x00, classic checksum)', 'tx');
     } catch (error) {
       this.push('SYS', '0x3C', 'MasterReq · Sleep', `休眠帧发送失败：${transferErrorMessage(errorText(error))}`, 'warn');
     }
@@ -410,7 +410,7 @@ class CwcmLinkStore {
     } catch (error) {
       this.failures++;
       this.notify({ misses: this.snapshot.misses + 1 });
-      this.push('SYS', '0x26/0x27', 'LIN 收发', `失败：${transferErrorMessage(errorText(error))}`, 'warn');
+      this.push('SYS', '0x26/0x27', 'LIN traffic', `Failed: ${transferErrorMessage(errorText(error))}`, 'warn');
     }
     if (gen !== this.generation || !this.snapshot.running) return;
     const delay = this.failures >= 3 ? 500 : CYCLE_MS;

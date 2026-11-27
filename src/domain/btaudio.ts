@@ -54,10 +54,10 @@ const STATE_BY_CODE = new Map<number, DevState>(
 export type DiscoveryState = 'NULL' | 'DISCOVERING' | 'TIMEOUT' | 'CANCEL';
 
 export const DISCOVERY_STATE_TEXT: Record<DiscoveryState, string> = {
-  NULL: '未扫描',
-  DISCOVERING: '扫描中',
-  TIMEOUT: '扫描超时',
-  CANCEL: '已取消',
+  NULL: 'Not scanning',
+  DISCOVERING: 'Scanning',
+  TIMEOUT: 'Scan timeout',
+  CANCEL: 'Cancelled',
 };
 
 const DISCOVERY_BY_CODE: Record<number, DiscoveryState> = {
@@ -130,10 +130,10 @@ export interface AudioZone {
 }
 
 export const ZONES: AudioZone[] = [
-  { ch: 0, zoneId: 4, zoneName: 'PASSENGER', seat: '副驾' },
-  { ch: 1, zoneId: 6, zoneName: 'REAR_RIGHT', seat: '右后' },
-  { ch: 2, zoneId: 5, zoneName: 'REAR_LEFT', seat: '左后' },
-  { ch: 3, zoneId: 7, zoneName: 'DRIVER', seat: '主驾' },
+  { ch: 0, zoneId: 4, zoneName: 'PASSENGER', seat: 'Passenger' },
+  { ch: 1, zoneId: 6, zoneName: 'REAR_RIGHT', seat: 'Rear Right' },
+  { ch: 2, zoneId: 5, zoneName: 'REAR_LEFT', seat: 'Rear Left' },
+  { ch: 3, zoneId: 7, zoneName: 'DRIVER', seat: 'Driver' },
 ];
 
 const CH_BY_ZONE_ID: Record<number, number> = { 4: 0, 6: 1, 5: 2, 7: 3 };
@@ -141,18 +141,18 @@ const MAX_FRAMES = 120;
 
 /** 回执报文的中文名，用来在提示行显示"请求 → 结果" */
 const RESP_LABEL: Record<number, string> = {
-  0x2002: '蓝牙开关',
-  0x2052: '对时',
-  0x0012: '开始扫描',
-  0x0014: '取消扫描',
-  0x0022: '配对',
-  0x0032: '连接',
-  0x0034: '断开',
-  0x0042: '挂载',
-  0x0044: '取消配对',
-  0x2022: '音量',
+  0x2002: 'BT switch',
+  0x2052: 'Time sync',
+  0x0012: 'Start scan',
+  0x0014: 'Cancel scan',
+  0x0022: 'Pair',
+  0x0032: 'Connect',
+  0x0034: 'Disconnect',
+  0x0042: 'Attach',
+  0x0044: 'Unpair',
+  0x2022: 'Volume',
   0x2032: 'ANC',
-  0x2042: '限幅器',
+  0x2042: 'Limiter',
 };
 
 export interface BtaSnapshot {
@@ -171,7 +171,7 @@ export interface BtaSnapshot {
 function makeDevice(id: number): BtaDevice {
   return {
     id,
-    name: `设备 ${id}`,
+    name: `Device ${id}`,
     nameKnown: false,
     type: 0,
     state: 'NULL',
@@ -261,7 +261,7 @@ export class BtaController {
 
   /** 串口每来一帧调一次（TX/RX 都进 Trace） */
   ingest(m: CdcMsg, dir: 'TX' | 'RX') {
-    const detail = describePayload(m.msgId, m.payload) + (m.crcOk ? '' : ' · CRC 校验失败');
+    const detail = describePayload(m.msgId, m.payload) + (m.crcOk ? '' : ' · CRC check failed');
     const entry: CdcFrame = {
       id: this.frameId++,
       ts: Date.now(),
@@ -304,9 +304,9 @@ export class BtaController {
     const label = RESP_LABEL[m.msgId];
     if (label) {
       const body = describePayload(m.msgId, m.payload);
-      this.snap.note = `${label}请求 → ${body}`;
+      this.snap.note = `${label} request → ${body}`;
       if (/REJECTED/.test(body) && (m.msgId === 0x0012 || m.msgId === 0x0022 || m.msgId === 0x0032)) {
-        this.snap.note += '（先确认蓝牙已使能、设备在上报列表里，再试一次）';
+        this.snap.note += ' (check BT is enabled and the device is listed, then retry)';
       }
       return;
     }
@@ -315,7 +315,7 @@ export class BtaController {
       case 0x2006: {
         if (v1 === 1 || v1 === 2) {
           this.snap.enabled = v1 === 1;
-          this.snap.note = this.snap.enabled ? '蓝牙已使能' : '蓝牙已关闭';
+          this.snap.note = this.snap.enabled ? 'Bluetooth enabled' : 'Bluetooth disabled';
         }
         break;
       }
@@ -323,7 +323,7 @@ export class BtaController {
         const s = v1 !== null ? DISCOVERY_BY_CODE[v1] : undefined;
         if (s) {
           this.snap.discovery = s;
-          this.snap.note = `扫描状态：${DISCOVERY_STATE_TEXT[s]}`;
+          this.snap.note = `Discovery: ${DISCOVERY_STATE_TEXT[s]}`;
         }
         break;
       }
@@ -338,7 +338,7 @@ export class BtaController {
         d.type = v3 ?? 0;
         d.rssi = pbInt32(p, 4);
         if (d.state === 'NULL') d.state = 'NOTPAIRED';
-        this.snap.note = `发现 ${d.name}（id ${d.id}）`;
+        this.snap.note = `Found ${d.name} (id ${d.id})`;
         break;
       }
       case 0x0020: {
@@ -346,7 +346,7 @@ export class BtaController {
         const state = STATE_BY_CODE.get(v2);
         if (!state) break;
         this.applyState(this.ensure(v1), state);
-        this.snap.note = `id=${v1} 状态 ${state}`;
+        this.snap.note = `id=${v1} state ${state}`;
         break;
       }
       // 0x3016：单台设备全部属性（重连后靠它拿回名字/类型/RSSI/状态）
@@ -378,7 +378,7 @@ export class BtaController {
         const d = this.ensure(v1);
         d.ch = v2 !== null && v2 !== 0 ? CH_BY_ZONE_ID[v2] ?? null : null;
         this.snap.note =
-          d.ch === null ? `id=${v1} 已脱离 Zone` : `id=${v1} 挂到 Ch${d.ch}`;
+          d.ch === null ? `id=${v1} detached from zone` : `id=${v1} attached to Ch${d.ch}`;
         break;
       }
       case 0x3018: {
@@ -393,7 +393,7 @@ export class BtaController {
             d.playing = false;
           }
         }
-        this.snap.note = `模块里有 ${ids.length} 台已配对设备`;
+        this.snap.note = `Module reports ${ids.length} paired device(s)`;
         // 照上位机的做法：拿到 id 列表立刻逐个查属性，否则名字/音量/电量全是空的
         this.refreshDevices(ids);
         break;
@@ -463,18 +463,18 @@ export class BtaController {
   setEnabled(on: boolean) {
     // EnumBTConnectivityState：1=ENABLED 2=DISABLED
     this.send('sysConnSet', pbInt(1, on ? 1 : 2));
-    this.say(on ? '已下发：使能蓝牙，等模块回执…' : '已下发：关闭蓝牙，等模块回执…');
+    this.say(on ? 'Sent: enable Bluetooth, waiting for the module…' : 'Sent: disable Bluetooth, waiting for the module…');
   }
 
   readAll() {
     this.send('sysConnGet');
     this.send('deviceListGet');
-    this.say('已下发：读蓝牙状态 + 已配对列表');
+    this.say('Sent: read BT state + paired list');
   }
 
   syncTime() {
     void serialLink.syncTime();
-    this.say('已下发：对时');
+    this.say('Sent: time sync');
   }
 
   startDiscovery() {
@@ -482,62 +482,62 @@ export class BtaController {
     this.send('radioDisc');
     this.say(
       this.snap.enabled === false
-        ? '已下发：开始扫描 —— 但蓝牙处于关闭状态，模块大概率回 REJECTED，先点「蓝牙使能」'
-        : '已下发：开始扫描',
+        ? 'Sent: start scan — but Bluetooth is off, the module will likely reply REJECTED; press "BT Enable" first'
+        : 'Sent: start scan',
     );
   }
 
   cancelDiscovery() {
     this.send('radioDiscCancel');
-    this.say('已下发：取消扫描');
+    this.say('Sent: cancel scan');
   }
 
   pair(id: number) {
     this.send('pair', pbInt(1, id));
-    this.say(`已下发：id=${id} 配对`);
+    this.say(`Sent: pair id=${id}`);
   }
 
   unpair(id: number) {
     this.send('unpair', pbInt(1, id));
-    this.say(`已下发：id=${id} 取消配对`);
+    this.say(`Sent: unpair id=${id}`);
   }
 
   connect(id: number) {
     this.send('connect', pbInt(1, id));
-    this.say(`已下发：id=${id} 连接`);
+    this.say(`Sent: connect id=${id}`);
   }
 
   disconnect(id: number) {
     this.send('disconnect', pbInt(1, id));
-    this.say(`已下发：id=${id} 断开`);
+    this.say(`Sent: disconnect id=${id}`);
   }
 
   attach(id: number, ch: number) {
     const zone = ZONES.find((z) => z.ch === ch);
     if (!zone) return;
     this.send('attach', [...pbInt(1, id), ...pbInt(2, zone.zoneId)]);
-    this.say(`已下发：id=${id} 挂载到 Ch${ch}`);
+    this.say(`Sent: attach id=${id} to Ch${ch}`);
   }
 
   setVolume(id: number, level: number) {
     const v = Math.max(0, Math.min(VOLUME_MAX, Math.round(level)));
     this.send('volumeSet', [...pbInt(1, id), ...pbInt(2, 3), ...pbInt(3, v)]);
-    this.say(`已下发：id=${id} 音量 ${v}`);
+    this.say(`Sent: volume ${v} for id=${id}`);
   }
 
   setMuted(id: number, mute: boolean) {
     this.send('volumeSet', [...pbInt(1, id), ...pbInt(2, mute ? 4 : 5)]);
-    this.say(`已下发：id=${id} ${mute ? '静音' : '取消静音'}`);
+    this.say(`Sent: ${mute ? 'mute' : 'unmute'} id=${id}`);
   }
 
   setAnc(state: AncState) {
     this.send('ancSet', [...pbInt(1, 0), ...pbInt(2, ANC_CODE[state])]);
-    this.say(`已下发：ANC ${state}（btdevice_id=0 全局）`);
+    this.say(`Sent: ANC ${state} (btdevice_id=0, global)`);
   }
 
   setLimiter(state: LimiterState) {
     this.send('limiterSet', [...pbInt(1, 0), ...pbInt(2, LIMITER_CODE[state])]);
-    this.say(`已下发：限幅器 ${state}（btdevice_id=0 全局）`);
+    this.say(`Sent: Limiter ${state} (btdevice_id=0, global)`);
   }
 
   clearFrames() {

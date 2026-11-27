@@ -230,7 +230,7 @@ function dump(m: PbMap): string {
       }
     }
   }
-  return parts.length ? parts.join(' ') : '(空 payload)';
+  return parts.length ? parts.join(' ') : '(empty payload)';
 }
 
 const DISCOVERY_TEXT: Record<number, string> = {
@@ -314,7 +314,7 @@ function decodeName(bytes: Uint8Array): string {
 
 /** 按报文号把 payload 翻成能读的一行；认不出的报文退回字段直译 */
 export function describePayload(msgId: number, payload: Uint8Array): string {
-  if (!payload.length) return '(空 payload)';
+  if (!payload.length) return '(empty payload)';
   const m = pbDecode(payload);
   const v1 = pbText1(m, 1);
   const v2 = pbText1(m, 2);

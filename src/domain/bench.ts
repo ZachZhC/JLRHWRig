@@ -79,15 +79,15 @@ export class WindowBench {
   press(id: DoorId, dir: Direction, source: InputSource, stage: 'manual' | 'auto' = 'manual') {
     const door = this.doors[id];
     const now = performance.now();
-    const label = dir === 'DOWN' ? '开窗' : '关窗';
-    const stageLabel = stage === 'auto' ? '自动档' : '手动档';
+    const label = dir === 'DOWN' ? 'Open window' : 'Close window';
+    const stageLabel = stage === 'auto' ? 'AUTO' : 'MANUAL';
     const atLimit = dir === 'DOWN' ? door.position <= LIMIT_EPS : door.position >= 100 - LIMIT_EPS;
 
-    this.log('command', id, `按下 · ${label} · ${stageLabel}`, `${sourceLabel(source)}输入`);
+    this.log('command', id, `Press · ${label} · ${stageLabel}`, `${sourceLabel(source)} input`);
 
     // 自动运行中：任何再次按下（同向或反向）都立即中断，停在当前位置
     if (door.auto && door.drive) {
-      this.log('system', id, '自动运行已中断', '再次按下，开始减速停止');
+      this.log('system', id, 'Auto run interrupted', 'Pressed again, decelerating to stop');
       door.auto = false;
       door.drive = null;
       door.stopReason = 'INTERRUPTED';
@@ -97,7 +97,7 @@ export class WindowBench {
     }
 
     if (atLimit) {
-      this.log('result', id, `${label}无动作`, '已处于极限位置');
+      this.log('result', id, `${label} not moved`, 'Already at limit position');
       this.notify();
       return;
     }
@@ -106,7 +106,7 @@ export class WindowBench {
     if (door.drive === dir) {
       if (!door.auto) {
         door.auto = true;
-        this.log('system', id, '进入自动模式', '同向再次按下，持续到极限位');
+        this.log('system', id, 'Auto mode engaged', 'Pressed again in same direction, runs to limit');
       }
       this.notify();
       return;
@@ -122,7 +122,7 @@ export class WindowBench {
     door.session = { from: door.position, at: now };
     door.stopReason = null;
     if (door.auto) {
-      this.log('system', id, '进入自动模式', stage === 'auto' ? '深按自动档' : '同向 0.4 s 内二次按下');
+      this.log('system', id, 'Auto mode engaged', stage === 'auto' ? 'Deep press (auto stage)' : 'Second press within 0.4 s');
     }
     this.notify();
   }
@@ -132,13 +132,13 @@ export class WindowBench {
     if (!door.drive) return;
     door.lastRelease = { dir: door.drive, at: performance.now() };
     if (door.auto) {
-      this.log('system', id, '自动模式保持', '松开后继续运行');
+      this.log('system', id, 'Auto mode holds', 'Keeps running after release');
       this.notify();
       return;
     }
     door.drive = null;
     door.stopReason = 'RELEASED';
-    this.log('command', id, '松开', '输入撤销，开始停止');
+    this.log('command', id, 'Released', 'Input withdrawn, stopping');
     this.notify();
   }
 
@@ -195,18 +195,18 @@ export class WindowBench {
     const delta = Math.round(Math.abs(door.position - session.from));
     const reasonLabel =
       reason === 'RELEASED'
-        ? '手动松开停止'
+        ? 'released manually'
         : reason === 'INTERRUPTED'
-          ? '再次按下中断'
+          ? 'interrupted by second press'
           : reason === 'OPEN_LIMIT'
-            ? '到达全开位'
-            : '到达全关位';
-    const title = reason === 'INTERRUPTED' ? `动作中断 · ${delta}%` : `动作完成 · ${delta}%`;
+            ? 'reached fully open'
+            : 'reached fully closed';
+    const title = reason === 'INTERRUPTED' ? `Motion interrupted · ${delta}%` : `Motion complete · ${delta}%`;
     this.log(
       'result',
       door.id,
       title,
-      `位置 ${Math.round(session.from)}% → ${Math.round(door.position)}% · ${duration.toFixed(
+      `Position ${Math.round(session.from)}% → ${Math.round(door.position)}% · ${duration.toFixed(
         2,
       )} s · ${reasonLabel}`,
     );
@@ -247,7 +247,7 @@ export class WindowBench {
 }
 
 function sourceLabel(source: InputSource): string {
-  if (source === 'KEYBOARD') return '键盘';
-  if (source === 'HARDWARE') return '硬件';
-  return '屏幕';
+  if (source === 'KEYBOARD') return 'KEYBOARD';
+  if (source === 'HARDWARE') return 'HARDWARE';
+  return 'SCREEN';
 }
