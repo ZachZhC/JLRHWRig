@@ -146,7 +146,6 @@ export interface CwcmSnapshot {
   tx: number;
   rx: number;
   misses: number;
-  lastResHex: string | null;
   /** 最近一次实际下发的有效亮度；255 = Fault 时模块不下发 PWM，LED 维持这个值 */
   lastPwmIntensity: number;
   frames: LinkFrame[];
@@ -167,7 +166,6 @@ const INITIAL: CwcmSnapshot = {
   tx: 0,
   rx: 0,
   misses: 0,
-  lastResHex: null,
   lastPwmIntensity: 254,
   frames: [],
   _rev: 0,
@@ -230,7 +228,7 @@ class CwcmLinkStore {
         }),
       });
       this.failures = 0;
-      this.notify({ link: 'open', linkError: null, tx: 0, rx: 0, misses: 0, lastResHex: null });
+      this.notify({ link: 'open', linkError: null, tx: 0, rx: 0, misses: 0 });
       this.push('SYS', '—', 'LINK', `通道 ${WCCM_CHANNEL} 已打开（19.2 kbps · 主节点）`, 'info');
     } catch (error) {
       const message = openErrorMessage(errorText(error));
@@ -401,7 +399,6 @@ class CwcmLinkStore {
         this.identity = view.identity;
         this.notify({
           rx: this.snapshot.rx + 1,
-          lastResHex: hex(bytes),
           partNo: view.partNo,
           serialNo: view.serialNo,
           partComplete: view.partComplete,

@@ -119,36 +119,6 @@ export function CWCMTesting() {
               ))}
             </div>
           </div>
-
-          {/* 链路与模块回读（全部来自 LIN 实际收发） */}
-          <div className="cwcm-readouts" aria-label="CWCM 链路状态">
-            <div className="cwcm-readout">
-              <span className="cwcm-readout-label">LIN Charging</span>
-              <span className={`cwcm-readout-value ${snap.running ? 'is-on' : ''}`}>
-                {snap.running ? 'ACTIVE' : snap.sleeping ? 'SLEEP' : 'OFF'}
-              </span>
-              <span className="cwcm-readout-hint">
-                {snap.running
-                  ? '0x26 / 0x27 · 70 ms 调度'
-                  : snap.sleeping
-                    ? '0x3C 休眠 · 充电停'
-                    : '开关 OFF · 未调度'}
-              </span>
-            </div>
-            <div className={`cwcm-readout ${snap.misses > 0 && snap.running ? 'is-warn' : ''}`}>
-              <span className="cwcm-readout-label">Module Reply</span>
-              <span className={`cwcm-readout-value ${snap.rx > 0 ? 'is-on' : ''}`}>
-                {snap.rx} <em>帧</em>
-              </span>
-              <span className={`cwcm-readout-hint ${snap.misses > 0 ? 'is-err' : ''}`}>
-                {snap.misses > 0
-                  ? `未应答 ${snap.misses}`
-                  : snap.lastResHex
-                    ? snap.lastResHex
-                    : '—'}
-              </span>
-            </div>
-          </div>
         </div>
       </section>
 
