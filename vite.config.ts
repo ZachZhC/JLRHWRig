@@ -8,5 +8,16 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    // 把 /api 转发到本机 BMCLI Web（CWCM 页的 LIN 链路走这里）
+    proxy: {
+      '/api': 'http://127.0.0.1:8080',
+    },
+  },
+  preview: {
+    host: true,
+    port: 4173,
+    proxy: {
+      '/api': 'http://127.0.0.1:8080',
+    },
   },
 });

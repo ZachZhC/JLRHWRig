@@ -1,8 +1,12 @@
 # AGENTS.md — JLR 硬件测试台架 HMI 开发说明
 
 > 本文件是**写给接手的 AI / 开发者**的交接文档。请先完整读一遍再动代码。
-> 最后更新：2026-11-26（树莓派部署自检：`.sh` 固定 LF、串口 dialout 权限、Chromium 首启参数；
-> WCCM-BT 页接真实模块：Web Serial 打 COM 口、CDC 帧编解码、连上自动握手，**模拟全部删除**）
+> 最后更新：2026-11-27（CWCM 拨「充电」ON 时 0x26 默认背光 ON · 100%；Fault(255) 按供应商逻辑图为
+> Error Status、不下发 PWM；暂只发 0x26/0x27 两帧；master-read 返回体已实测收紧为 `result.data`）
+> 2026-11-26（树莓派部署自检：`.sh` 固定 LF、串口 dialout 权限、Chromium 首启参数；
+> WCCM-BT 页接真实模块：Web Serial 打 COM 口、CDC 帧编解码、连上自动握手，**模拟全部删除**；
+> CWCM 页接真实 LIN：BMCLI/XL2 当主节点，**充电 ON/OFF 拨动开关**（ON=唤醒+70 ms 调度 /
+> OFF=0x3C 休眠，休眠优先于一切）+ 端口 LED 跟随 0x26 信号，**模拟全部删除**）
 
 ---
 
@@ -10,7 +14,7 @@
 
 车轮测试台架（Hardware Test Rig）的人机界面（HMI）。深色工业风仪表盘，
 用一台屏幕模拟真实车上的多个控制模块，用于台架联调与演示。
-后续会接入树莓派 GPIO / LIN / CAN 真实硬件（目前除 WCCM-BT 的蓝牙链路外，其余仍为前端模拟）。
+后续会接入树莓派 GPIO / LIN / CAN 真实硬件（目前 WCCM-BT 的蓝牙链路、CWCM 的 LIN 链路已接真实模块，其余仍为前端模拟）。
 
 顶部品牌：`DP-Hardware Team Rig · Test Version v0`，右侧有 `模拟输入 SIM` 状态灯与时钟。
 
@@ -21,7 +25,7 @@
 | `window` | Windows Testing | 四门车窗（FL/FR/RL/RR）+ 中央车辆俯视图 + LIN Trace | 已完成 |
 | `swm` | SWM Testing | 方向盘模块（Steering Wheel Module）实物图 + 6 个监控面板 + CAN Trace | 已完成 |
 | `sws` | SWS Testing | 左右拨杆开关（Steering Wheel Switch）双实物图 + LED 光条 + 监控面板 + CAN Trace | 已完成 |
-| `cwcm` | CWCM Testing | 中央有线充电模块（USB 充电）实物图 + 功率/背光控制 + LIN Trace | 已完成 |
+| `cwcm` | CWCM Testing | 中央有线充电模块实物图 + LIN15 真实收发（充电=通讯/休眠）+ LIN Trace | 已接真实 LIN（等 XL2 绑口） |
 | `btaudio` | WCCM-BT Testing | WCCM 蓝牙耳机音频：4 条 UAC 音轨（=4 个 Zone）+ **浏览器真实出声的下行播放** + 全局 ANC/限幅器 + 真实 CDC Trace | 已接真实模块（无任何模拟） |
 | `wdcm` | WDCM Testing | 无线充电模块实物图 + NFC 感应动画 + 充电档位 + Phone As Key | 前端已完成，等 CAN 信号 |
 
@@ -48,6 +52,16 @@ npm run preview  # 预览 dist/，http://localhost:4173
 `vite.config.ts` 里已设 `base: './'`，目的是让 `dist/` 能用 `file://` 直接在树莓派 kiosk 下打开。
 
 `start-hmi.bat` 是给台架用的双击启动脚本（起 4173 预览 + 打开浏览器）。
+
+**CWCM 页还需要 BMCLI Web 在跑**（LIN 链路的后端）：
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\BMCLI\bin\bmcli.exe" web start --listen=127.0.0.1:8080
+```
+
+`/api/v1/*` 由 Vite dev（5173）和 preview（4173）的代理转到 `127.0.0.1:8080`，
+所以这两条路都能用；**`file://` 打开时 CWCM 页连不上**（相对 `/api` 没有宿主），
+WCCM-BT 的串口功能也一样，台架上这两页统一走 http。
 
 **树莓派部署**：`deploy/pack-for-pi.ps1` 在 Windows 上打包（`dist/` + `kiosk.sh` + `setup-pi.sh`），
 拷到 Pi 后 `bash setup-pi.sh` 一次性装依赖（Chromium、python3、`dialout` 串口权限、关屏保）
@@ -102,6 +116,8 @@ src/
                        payload 翻成一行中文/字段、报文编号表 `CDC`（接真协议时只改这张表）
     serial.ts          Web Serial 链路：选口/开关口、半帧拼接、按 CDC 表发帧、开箱三步握手
     audioout.ts        浏览器真实出声：枚举输出设备 / setSinkId 切路 / Zone↔声卡绑定（存 localStorage）
+    cwcm.ts            CWCM/WCCM 的 LIN15 编解码唯一目录：0x26 打包、0x27 解析与零件号/序列号分块拼接
+    cwcmLink.ts        CWCM LIN 链路（BMCLI Web）：开主通道、充电开关（唤醒脉冲 / 70 ms 周期 / 0x3C 休眠）、Trace 快照
   ui/
     TopBar.tsx         Tab 定义 + 时钟（新增页面先改这里）
     WindowPage.tsx     车窗页（含键盘映射）
@@ -195,28 +211,78 @@ class BenchStore {
 - 实物图热区用**百分比坐标**标定（相对图片宽高），不要写死 px。
 - 状态机在 `domain/swm.ts` / `domain/sws.ts`，UI 只读快照。
 
-### CWCM（`ui/CWCMTesting.tsx`）
+### CWCM（`ui/CWCMTesting.tsx` + `domain/cwcm.ts` + `domain/cwcmLink.ts`）
 
-控制台下发（模拟 LIN）：
+> **这一页也没有模拟了（2026-11-26）**：所有控件都往真实 LIN15 发帧，
+> 所有回显都来自模块的 0x27 应答；没连上/没收到就显示 `—`。
+> 原来的 `External / Internal / Actual Power Level` 三张卡**全部删除** ——
+> 它们不在 LIN15 的信号表里（ESIS 里没有），是早期凭空造的模拟量。
 
-| 控件 | 取值 | 说明 |
-|---|---|---|
-| `External Power Limit` | 400 / 240 / 60 / 0 W | 外部给模块的输入限值 |
-| `EIPowerStatus` | Keep Active / WarningLowBatteryVolt / ShutDown / NotUsed | |
-| `LimitedPowerMode` | False / True | |
-| `Backlight Status` | 0 = OFF / 1 = ON | 发 LIN 0/1 |
-| `Backlight Intensity` | 0–254 有效，**255 = Fault Condition Present** | |
+链路：浏览器 → `http://127.0.0.1:8080/api/v1`（BMCLI Web，Vite 已配 `/api` 代理）→ BMCLI 守护进程 → XL2 → LIN15。
 
-模块回传（只读监控，放在图片右侧）：
+- **WCCM 是从节点，主节点由台架当**（LDF 里 0x26/0x27 的 publisher 是 BCMA）。
+  `cwcmLink.connect()` 用 `mode: 'master'` 开 `cwcm-lin` 通道，参数
+  `19200 / lin_version 2.1 / checksum enhanced / pullup 1k / power off`。
+  `power:'off'` 是为了不给台架 12 V 反灌；真需要供电再改。
+- **两帧都是 enhanced 校验和**（LIN 2.1 网络，Virtual_EVAC 才是 1.3 老节点）。
+- **充电 = 有通讯**（用户 2026-11-26 定的语义）：头栏右上是**「充电」ON/OFF 拨动开关**（先「连接」通道才可用）。
+  ON = 主节点先发 `sync-break` 唤醒脉冲，等 150 ms 后按 70 ms 调度 0x26/0x27，WCCM 被唤醒即开始充电；
+  OFF = 停周期、发一帧 **0x3C MasterReq 休眠**（`00×8`，**classic 校验和**），页面状态变 SLEEP。
+  **每次 ON 都发唤醒脉冲**，不只在本地发过 0x3C 时发 —— LIN 从节点在总线静默后会自动休眠。
+  **没有别的"充电状态"来源**，别再加开关/定时器造状态。
+- **休眠/唤醒的优先级最高**（2026-11-26 与需求对齐）：休眠 —— 命令 0x3C **或**总线静默约 4 s
+  自动休眠 —— 一律 **充电停 + LED 灭**；唤醒回到"正常逻辑"（端口与 LED 重新由 0x26 决定）。
+- **正常逻辑（0x26 的组合规则）**：端口使能 = `!(LimitedPowerMode=1 || ElPowerStatus=ShutDown)`；
+  端口关断时模块**强制 LED 0%**（背光信号被忽略）；**没有 LIN 就没有唤醒**——模块不进工作态，
+  充电停、LED 灭（2026-11-27 用户确认；2026-04-28 流程图里"无 LIN 亮 100%"那支已被休眠策略覆盖，
+  别再按它实现）。
+  端口开着时再按 `BacklightStatus`：0 → LED 0%；1 → 按 `BacklightIntensity` 出 0–100%。
+  **`BacklightIntensity=255` = Error Status，模块不下发 PWM**，LED 保持上一档有效亮度
+  （供应商 LED 背光逻辑图，2026-04-28 邮件附件；页面用 `lastPwmIntensity` 复现，
+  亮度读数与 Trace 里标 `Fault(255) · 未下发 PWM`）。
+  页面上的 USB 口 LED 就按这条规则渲染（`CWCMTesting.tsx` 的 `ledLevel`），不另造状态。
+- **断开通道**：若正在充电，先等 250 ms 让在途的 0x26/0x27 收敛（否则晚到帧会把刚睡下的模块又吵醒），
+  发一帧 0x3C 再 DELETE 通道。OFF 的休眠帧发出前也走同样的收敛等待；期间若又拨回 ON，这次 OFF 作废。
+- 周期 = **70 ms**：`Normal_L5` 是 7 个 10 ms 槽（0x21–0x27），台架只做 WCCM 这两帧，
+  按 0x27 的槽位节拍发。读数用同步 master-read（0x27，200 ms 超时），
+  连丢 3 帧后降速到 500 ms 重试，恢复后自动回到 70 ms。
+- **0x26 `WCCM_L15_Req_A`**（台架→WCCM，8 字节）：按 LDF 起始位小端拼位 ——
+  `LimitedPowerMode@30`(1) / `BacklightStatus@31`(1) / `SPBBatVolt@32`(8) /
+  `PBBatVolt@40`(8) / `BacklightIntensity@48`(8) / `PowerMode_LIN@56`(5) / `ElPowerStatus@61`(2)。
+  台架默认发 `FF FF FF BF 8C 8C FE 80`（**背光 ON · 100%**，2026-11-27 定：拨「充电」ON 就能看到
+  模块 LED 亮；`defaultReqState()` 里 `backlightStatus: 1 / backlightIntensity: 254`）。LDF 的
+  `initial_data` 是 `FF FF FF 3F 8C 8C 00 80`（背光 OFF/0%），只当帧布局基准，不是台架默认值。
+  未用位补 1，PB/SPB 140 = 14.0 V，PowerMode_LIN 0 = KeyOut。**台架必须自己供 PB/SPB/PowerMode**，
+  ESIS 里这三项是 BCMA 发布的。
+- **0x27 `WCCM_L15_Res_A`**（WCCM→台架，8 字节）：`WCCMPartNo@0`(16 ASCII) /
+  `WCCMSerialNo@16`(16) / `WCCMPartNoBlkNo@32`(4，0–11) / `WCCMSerialNoBlkNo@36`(3，0–7) /
+  `ErrRespWCCM@39`(1)。**零件号要拼 12 帧 × 2 字符 = 24 字符，序列号 8 帧 × 2 = 16 字符**，
+  按 blkNo 归位、缺块留空；`errResp` 非 0 时标红。拼接逻辑在 `ingestWccmRes()`。
+- 控件（全部 disabled 直到通道 open + 周期在跑）：
+  | 控件 | 信号 | 取值 |
+  |---|---|---|
+  | `EIPowerStatus` | `ElPowerStatus` | 0 KeepActive / 1 WarningLowBatteryVolt / 2 ShutDown / 3 NotUsed |
+  | `LimitedPowerMode` | 同名 | False / True |
+  | 背光开关 | `BacklightStatus` | 0 OFF / 1 ON |
+  | 背光滑条 | `BacklightIntensity` | 0–254（×0.3937 %），**255 = Fault Condition Present → Error Status，模块不下发 PWM、LED 停在上一档** |
+- 头栏状态胶囊：`LIN 已连接 / 连接中… / 连接失败 / LIN 未连接`，失败原因只放在 `title`
+  和 Trace 里（完整文本太长，会撑破头栏）。
+- **打开失败最常见的原因**：`cwcm-lin 未绑定 XL2 端口`——`target.json` 里通道还没绑 SN/port，
+  等设备到了跑 `bmcli bench init --network=cwcm-lin --channel=<SN或port>`。
+  原始 daemon 报错是英文 `channel is not currently enumerated`，`openErrorMessage()` 负责翻成中文。
+- **master-read 的返回体已实测**（2026-11-26，对虚拟 LIN 通道跑通）：
+  `{"status":"ok","result":{"channel":1,"accepted":1,"received":1,"errors":0,"data":"0000000000000000"}}`，
+  帧数据在 `result.data`（无空格十六进制串）。`extractFrameData()` 已按此收窄，只读 `result.data`；
+  `data` 缺失/为空时走"无数据返回（模块未应答）"分支。虚拟通道上 `sync-break` 会回
+  503 `lin_transfer_failed / host-timeout`（Trace 里翻成「模块未应答（LIN 主机超时）」继续跑），
+  台架是否有真实 LIN 口、能否发唤醒脉冲要等 XL2 到货确认。
+- Trace 与 WCCM-BT 页同款（`.bta-frames` 复用）：`TX` 下发 / `RX` 模块应答 / `未应答` 计数，
+  右上角还有丢帧数；清空按钮不清计数。
 
-- `Internal Power Level`：CWCM 上报的输出档位（模拟恒为 400）。
-- `Actual Power Level`：整数，0–400 之间随机游走。
-- **超限判定**：`Actual > min(External Power Limit, Internal Power Level)` → 报 WARNING（琥珀闪烁）。
-- `External Power Limit` 与 `Internal Power Level` **没有任何联动**，别把它们写成有关系的。
-
-USB 输出口：下方中间 3 个 + 右下 1 个，共 4 个，**不可单独控制**，
-充电使能时四个口一起点亮（青色呼吸光晕）。四个口的百分比坐标见
-`CWCMTesting.tsx` 里的 `USB_PORTS` 常量（按原图 1362×641 像素标定的）。
+USB 输出口：下方中间 3 个 + 右下 1 个，共 4 个，**不可单独控制**。页面上的高亮就是插座 LED：
+**常亮、不呼吸**，亮度（`opacity`）跟随 `BacklightIntensity`，`BacklightStatus=0`、端口被 0x26 关断
+或休眠时熄灭 —— 与模块实际 LED 行为一致，别再加动画或只按"通讯中"点亮。
+四个口的百分比坐标见 `CWCMTesting.tsx` 里的 `USB_PORTS` 常量（按原图 1362×641 像素标定的）。
 
 ### WCCM-BT（`ui/BTAudioTesting.tsx` + `domain/btaudio.ts` + `domain/serial.ts`）
 
@@ -334,8 +400,15 @@ USB 输出口：下方中间 3 个 + 右下 1 个，共 4 个，**不可单独�
   配循环扩散的涟漪 + 青色底光呼吸。线圈热区常量 `COIL = { left:41.5, top:58.8, width:39.06 }`。
   卡片宽度是线圈的 **132%**（比圆盘大一圈），所以涟漪终态 `scale` 必须 **> 1.32**
   才不会被卡片完全挡住 —— 加大卡片要同步加大涟漪终态。
-- **充电开关 Charging**：三个档位按钮 `25W / 10W / OFF`（`GEARS` 常量），
-  测试人员手动单选，默认 OFF。选中 25W/10W 用青色高亮，OFF 用中性冷灰（不占告警色）。
+- **FOD 异物检测**（Foreign Object Detection，WPC Qi 的标准安全机制：面板上有硬币/钥匙等
+  金属物时模块停止功率输出并上报）：按钮 + 快捷键 `F` 触发，一枚金属币落到线圈偏左下，
+  配**琥珀色**告警涟漪 + 底光呼吸（节奏比 NFC 快），角标「检测到异物 · FOD」放在
+  NFC「感应中」角标的下方（`top:126%`），两层同开时上下错开、硬币压在 NFC 卡之上
+  （对应"手机在充、钥匙落在上面"的真实场景）。硬币是 `src/assets/uk-one-pound.png`
+  （生成的 1 英镑图，白底抠成透明，256×256）。触发同样只是模拟，CAN 信号到位后把
+  `setFod` 换成信号驱动的快照即可，动画不用改。
+- **充电开关 Charging**：四个档位按钮 `25W / 15W / 5W / OFF`（`GEARS` 常量），
+  测试人员手动单选，默认 OFF。选中 25W/15W/5W 用青色高亮，OFF 用中性冷灰（不占告警色）。
 - **Phone As Key**：一行 `Handshake` 状态栏，取值 `PENDING / SUCCEEDED / FAILED`，
   默认 PENDING。判定逻辑未定，点击状态栏在三种值间循环以便演示。
   红/琥珀/青都在 `:root`（新增 `--danger: #e4635c` 表示硬失败）。
@@ -413,6 +486,14 @@ USB 输出口：下方中间 3 个 + 右下 1 个，共 4 个，**不可单独�
 | 页面卡住 / 报 `WritableStream is locked` | 多个 `send()` 并发 `getWriter()`。`serialLink` 内部有 `writeChain` 排队，发帧一律走 `send()` |
 | RSSI 显示成 18 亿 / 0 | 负数 int32 是 10 字节补码，`pbDecode` 只留低 32 位，取值用 `pbInt32()` |
 | `0x3016` 里的设备状态读到 0 | 模块把 `device_state` 放在**字段 5**，供应商上位机的 proto 错位到 6（读出来永远是 NULL）。别照抄他们的字段号 |
+| CWCM 点「连接」报 `cwcm-lin 未绑定 XL2 端口` | 正常，XL2 还没到或没绑口。跑 `bmcli bench init --network=cwcm-lin --channel=<SN/port>`；原始报错是英文 `channel is not currently enumerated` |
+| CWCM 页在 `file://` / `npm run preview` 下连不上 | `/api` 是相对路径，`file://` 没有宿主；preview 已在 `vite.config.ts` 里配了代理（2026-11-26 补） |
+| master-read 拿不到应答数据 | 返回体在 OpenAPI 里没写 payload 字段。已实测帧数据在 `result.data`（2026-11-26），`extractFrameData()` 只读这一处 |
+| 发了 0x3C 没进休眠 | 0x3C 是**诊断帧，classic 校验和**，不是 enhanced；ID 0x3C / 数据全 0 缺一不可 |
+| 休眠后再使能起不来 | 要先发 `sync-break` 唤醒，等 150 ms 再起 70 ms 周期（真机未验，可能要加长） |
+| 以为"没有 LIN 时 LED 亮 100%" | 那是 2026-04-28 供应商流程图的旧结论，已被 2026-11-26 休眠策略覆盖。**没有 LIN 就没有唤醒**，模块不进工作态，充电停 + LED 灭（2026-11-27 用户确认） |
+| 零件号拼出来缺字符 / 乱序 | 0x27 每帧只带 2 个字符 + 块号，必须按 `WCCMPartNoBlkNo` 0–11 归位拼 24 字符 |
+| 页面上的 PB/SPB 电压谁给 | 台架（BCMA 角色）自己供，ESIS 里是 BCMA 发布；默认 140 = 14.0 V，别指望模块上报 |
 
 ---
 
@@ -427,8 +508,8 @@ USB 输出口：下方中间 3 个 + 右下 1 个，共 4 个，**不可单独�
 
 ## 12. 待办（Next）
 
-- [ ] WDCM 接真实 CAN 信号：充电档位（25W/10W/0）下发、NFC 检测触发、Phone As Key 握手判定
-      —— 三项目前都是组件内 `useState`，届时建 `src/domain/wdcm.ts` 状态机替换
+- [ ] WDCM 接真实 CAN 信号：充电档位（25W/15W/5W/0）下发、NFC 检测触发、FOD 异物检测上报、Phone As Key 握手判定
+      —— 这几项目前都是组件内 `useState`，届时建 `src/domain/wdcm.ts` 状态机替换
 - [ ] **WCCM-BT 页真机联调**：模拟已全删，页面动作全部走 `serialLink`，但只在假串口上验过状态机。
       真机要逐条确认：蓝牙使能 `0x2001`、扫描 `0x0011`/取消 `0x0013`、配对 `0x0021`、连接 `0x0031`、
       断开 `0x0033`、挂载 `0x0041`、音量/静音 `0x2021`、ANC `0x2031`、Limiter `0x2041`；
@@ -438,7 +519,17 @@ USB 输出口：下方中间 3 个 + 右下 1 个，共 4 个，**不可单独�
       真机要确认"四路各选一首 → 四台耳机是否各自出声"，并确认上位机运行时能不能同时占住 UAC（独占模式）
 - [ ] 页面复审提过、尚未拍板的三项：Zone 占用标注、一键"全部断开 + 清空配对"、ANC/Limiter 的"上位机未实现"标记
 - [ ] 确认 ANC / Limiter 两族报文（0x2031~0x2046）在真实模块上的实际编号——供应商上位机未实现，目前只有 SSRD 依据
-- [ ] 接真实硬件：树莓派 GPIO（Windows）、LIN / CAN 收发
-- [ ] WCCM Part Number / Serial Number 由真实 LIN 报文填充（目前预留 24 字符占位）
-- [ ] `EIPowerStatus = ShutDown` 时是否强制 `Internal Power Level = 0`（待确认）
-- [ ] Actual Power Level 的模拟策略确认（当前随机游走）
+- [ ] **CWCM LIN 真机联调**（等 XL2 到货）：先 `bmcli bench init --project=... --network=cwcm-lin --channel=<SN/port> --pullup=1k --power=off`，
+      重启 `bmcli web`，再从页面「连接」；然后逐项确认 —— 冷启动时按网络名打开是否是通的
+      （虚拟通道上未开过的逻辑名会回 404 `channel is not currently enumerated`，实测只有已经打开的通道能按名解析；
+      真实 XL2 插入后是否会被枚举待确认，不行就把 `WCCM_CHANNEL` 常量直接换成 SN/port）、
+      0x26 模块能收、0x27 每帧回 2 字符且 blkNo 0–11 能拼满 24 字符、
+      0x3C 休眠能被模块接受、`sync-break` 能唤醒、`pullup 1k / power off` 这组参数是否合适
+- [ ] **CWCM 调度范围**（2026-11-27 定：先只发 0x26/0x27）：真机上模块若报通讯/总线错误，
+      再考虑补 Normal_L5 的 0x21–0x25（那五帧在 LDF 里是别的节点发布的）
+- [ ] **CWCM LIN Trace 升级**（2026-11-27 评估，**决定等 XL2 后再做**）：现状是 200 行 ≈ 7 s、
+      时戳只到秒、无原始字节列/自动滚动/过滤/导出。升级项：毫秒时戳 + Δt、DLC + 数据 hex 列、
+      自动滚动 + 暂停、按 ID/方向过滤、1000 行、CSV 导出；以及 LDF 信号解析
+      （LDF 含 0x21–0x27 + 0x3C、81 个信号，可 raw 导入前端运行时解析，做行内展开 + 信号监视表）；
+      进阶可选：用 BMCLI `/messages/stream`（SSE，硬件时戳 + gap 事件）替代现在的软件时戳同步事务
+- [ ] 接真实硬件：树莓派 GPIO（Windows）、CAN 收发（LIN 已走 XL2 方案）

@@ -3,14 +3,16 @@
  * 实物图为透视校正后的正俯视图（src/assets/wdcm.png，1362×697）。
  *
  * NFC 动画：检测到 NFC 时，一张卡片落到线圈圆盘中央并停留，配循环扩散的青色涟漪。
- * 触发源目前用页面按钮 + N 键模拟，CAN 信号到位后把 setNfc 换成信号驱动即可，
- * 动画本身不用改。
+ * FOD 动画（异物检测）：检测到异物时，一枚金属币落到线圈上并停留，配琥珀色告警涟漪；
+ * 与 NFC 图层可同时出现（手机在充、硬币/钥匙落在上面），两套触发目前都用按钮 + 快捷键模拟，
+ * CAN 信号到位后把 setNfc / setFod 换成信号驱动即可，动画本身不用改。
  *
  * 充电档位与 Phone As Key 目前只做前端：档位由测试人员手动选，
  * 握手状态判定逻辑都等信号定义到位，届时把这里的 useState 换成状态机快照。
  */
 import { useEffect, useState } from 'react';
 import wdcmImg from '../assets/wdcm.png';
+import coinImg from '../assets/uk-one-pound.png';
 
 const ACCENT = '#2fd5c3';
 
@@ -21,7 +23,7 @@ const ACCENT = '#2fd5c3';
 const COIL = { left: 41.5, top: 58.8, width: 39.06 };
 
 /** 充电功率档位，0 = 关闭 */
-const GEARS = [25, 10, 0] as const;
+const GEARS = [25, 15, 5, 0] as const;
 type Gear = (typeof GEARS)[number];
 
 /** Phone As Key 握手状态 */
@@ -40,6 +42,7 @@ const HANDSHAKE_NEXT: Record<Handshake, Handshake> = {
 
 export function WDCMTesting() {
   const [nfc, setNfc] = useState(false);
+  const [fod, setFod] = useState(false);
   const [gear, setGear] = useState<Gear>(0);
   const [handshake, setHandshake] = useState<Handshake>('pending');
 
@@ -47,9 +50,14 @@ export function WDCMTesting() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
-      if (event.key.toLowerCase() !== 'n') return;
-      event.preventDefault();
-      setNfc((v) => !v);
+      const key = event.key.toLowerCase();
+      if (key === 'n') {
+        event.preventDefault();
+        setNfc((v) => !v);
+      } else if (key === 'f') {
+        event.preventDefault();
+        setFod((v) => !v);
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -72,19 +80,30 @@ export function WDCMTesting() {
             <span className="wdcm-enable-label">NFC 检测</span>
             <strong className="wdcm-enable-state">{nfc ? 'DETECTED' : 'IDLE'}</strong>
           </button>
+          <button
+            type="button"
+            className={`wdcm-enable wdcm-fod-enable ${fod ? 'is-on' : ''}`}
+            onClick={() => setFod((v) => !v)}
+            aria-pressed={fod}
+            title="模拟 FOD 异物检测（快捷键 F）"
+          >
+            <span className="wdcm-enable-dot" />
+            <span className="wdcm-enable-label">FOD 异物检测</span>
+            <strong className="wdcm-enable-state">{fod ? 'DETECTED' : 'IDLE'}</strong>
+          </button>
         </div>
 
         <div className="wdcm-img-wrap">
           <img className="wdcm-img" src={wdcmImg} alt="WDCM 无线充电模块" />
           <div className="swm-overlay">
             <div
-              className={`wdcm-coil ${nfc ? 'is-on' : ''}`}
+              className={`wdcm-coil ${nfc ? 'is-on' : ''} ${fod ? 'is-fod' : ''}`}
               style={{
                 left: `${COIL.left}%`,
                 top: `${COIL.top}%`,
                 width: `${COIL.width}%`,
               }}
-              aria-hidden={!nfc}
+              aria-hidden={!nfc && !fod}
             >
               <span className="nfc-halo" />
               <span className="nfc-ripple" />
@@ -100,6 +119,15 @@ export function WDCMTesting() {
                 </svg>
               </div>
               <span className="nfc-flag">NFC 感应中</span>
+              {/* FOD 图层：金属异物 + 琥珀告警涟漪，DOM 在卡片之后，同开时压在手机上 */}
+              <span className="fod-halo" />
+              <span className="fod-ripple" />
+              <span className="fod-ripple fod-ripple-2" />
+              <span className="fod-ripple fod-ripple-3" />
+              <div className="fod-object">
+                <img className="fod-coin-img" src={coinImg} alt="" aria-hidden="true" />
+              </div>
+              <span className="fod-flag">检测到异物 · FOD</span>
             </div>
           </div>
         </div>

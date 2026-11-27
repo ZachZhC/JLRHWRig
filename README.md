@@ -33,9 +33,9 @@ Windows 台架上可直接双击 `start-hmi.bat`（起 4173 预览并打开浏�
 | Windows Testing | 四门车窗（两段式 M/A 开关、自动防夹、LIN Trace） | 完成 |
 | SWM Testing | 方向盘模块：档位 / 转向灯 / 远近光 / 雨刮 / 雾灯 + CAN Trace | 完成 |
 | SWS Testing | 左右拨杆开关：LED 光条 + 菜单/娱乐/巡航/ADAS 监控 + CAN Trace | 完成 |
-| CWCM Testing | 中央有线充电：功率控制、背光控制、USB 口点亮 + LIN Trace | 完成 |
+| CWCM Testing | 中央有线充电：真实 LIN15 收发（「充电」开关 = 通讯/0x3C 休眠）、背光控制、USB 口 LED 跟随信号、LIN Trace | 已接真实 LIN（等 XL2 绑口） |
 | WCCM-BT Testing | WCCM 蓝牙：扫描/配对/挂载真帧收发、4 路 UAC 真实出声、ANC/限幅器 + CDC Trace | 已接真实模块 |
-| WDCM Testing | 无线充电：实物图、NFC 感应动画、25W/10W/OFF 档位、Phone As Key | 前端完成，等 CAN 信号 |
+| WDCM Testing | 无线充电：实物图、NFC 感应动画、FOD 异物检测、25W/15W/5W/OFF 档位、Phone As Key | 前端完成，等 CAN 信号 |
 
 ## WCCM-BT 的两个前提
 
@@ -44,6 +44,17 @@ Windows 台架上可直接双击 `start-hmi.bat`（起 4173 预览并打开浏�
 1. **必须用 `http://` 打开**（`http://localhost:4173` 这类），且浏览器用 Edge / Chrome。
    `file://` 或局域网 IP 下没有 Web Serial / 音频设备枚举能力。
 2. **WCCM 的 COM 口是独占的**：供应商上位机开着时页面连不上，先关掉上位机。
+
+## CWCM 的运行前提
+
+CWCM 页的所有收发都走本机 **BMCLI Web**（`127.0.0.1:8080`，Vite 已把 `/api` 代理过去）：
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\BMCLI\bin\bmcli.exe" web start --listen=127.0.0.1:8080
+```
+
+XL2 到货后要先绑定 LIN 口（`bmcli bench init --network=cwcm-lin --channel=<SN/port>`），
+再从页面「连接」。用 `file://` 打开时连不上（相对 `/api` 没有宿主）。
 
 ## 文档
 

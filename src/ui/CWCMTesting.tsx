@@ -1,19 +1,18 @@
 /**
- * CWCM Testing —— USB 充电模块
- * 通过 LIN 信号控制充电开启/关闭、功率、背光。
- * 四个 USB 输出口（下方中间 3 个 + 右下 1 个）不可单独控制，
- * 充电使能时一并点亮提示。
+ * CWCM Testing —— USB 充电模块（LIN15 真实链路）
  *
- * 控制台下发（LIN）：
- *   - External Power Limit / EIPowerStatus / LimitedPowerMode
- *   - Backlight Status：0=OFF，1=ON
- *   - Backlight Intensity：0-254 有效，255=Fault Condition Present
- * 模块回传（只读监控）：
- *   - Internal Power Level / Actual Power Level
- *   - WCCM Part Number / Serial Number
+ * 台架上 XL2 作为 LIN 主节点，WCCM 是从节点（NAD 0x02）：
+ *   - 充电中 = 持续 0x26 下发 + 0x27 回读（= LIN 通讯正常）
+ *   - 充电结束 = 0x3C 休眠指令
+ *   - 背光 / ElPowerStatus / LimitedPowerMode 走 0x26
+ *   - 零件号 / 序列号来自 0x27 分块回传
+ *
+ * 页面没有任何模拟数据：通道未开就显示未连接，模块没报就显示 —。
  */
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import cwcmImg from '../assets/cwcm.png';
+import { EL_POWER_OPTIONS, WCCM_CHANNEL, cwcmLink } from '../domain/cwcmLink';
+import { BACKLIGHT_FAULT } from '../domain/cwcm';
 
 const ACCENT = '#2fd5c3';
 
@@ -25,72 +24,79 @@ const USB_PORTS = [
   { id: 'p4', left: 76.65, top: 85.49, w: 6.46, h: 7.96 },
 ];
 
-/** 功率档位（外部输入限值） */
-const POWER_LEVELS = [400, 240, 60, 0] as const;
-
-/** CWCM 上报的内部输出档位（模拟：使能时为额定最大档位） */
-const INTERNAL_LEVEL = 400;
-
-const EI_POWER_STATUS = ['Keep Active', 'WarningLowBatteryVolt', 'ShutDown', 'NotUsed'] as const;
-const LIMITED_POWER_MODE = ['False', 'True'] as const;
-
-/** WCCM 回传信息占位（预留 24 字符长度，待 LIN 报文填充） */
-const WCCM_PART_NUMBER = '';
-const WCCM_SERIAL_NUMBER = '';
-const EMPTY_24 = '-'.repeat(24);
-
-const FAULT_INTENSITY = 255;
+function fmtTime(ts: number) {
+  return new Date(ts).toLocaleTimeString('zh-CN', { hour12: false });
+}
 
 export function CWCMTesting() {
-  const [charging, setCharging] = useState(false);
-  const [extLimit, setExtLimit] = useState<number>(400);
-  const [eiPowerStatus, setEiPowerStatus] = useState<string>('Keep Active');
-  const [limitedPowerMode, setLimitedPowerMode] = useState<string>('False');
+  const snap = useSyncExternalStore(cwcmLink.subscribe, cwcmLink.getSnapshot);
+  const live = snap.link === 'open';
+  const ready = live && snap.running;
+  const fault = snap.req.backlightIntensity === BACKLIGHT_FAULT;
 
-  const [backlightOn, setBacklightOn] = useState(false);
-  const [intensity, setIntensity] = useState(128);
-  const [actual, setActual] = useState(0);
+  // 端口 LED = 主节点按 0x26 指令出来的状态（供应商 LED 背光逻辑图）：
+  // 休眠 / LimitedPowerMode=1 / ElPowerStatus=ShutDown → 模块强制 0%；
+  // BacklightStatus=0 → 0%；255 = Error Status，模块不下发 PWM，LED 停在上一档有效亮度。
+  const portsEnabled = snap.req.limitedPowerMode === 0 && snap.req.elPowerStatus !== 'ShutDown';
+  const pwmIntensity = fault ? snap.lastPwmIntensity : snap.req.backlightIntensity;
+  const ledLevel =
+    snap.running && portsEnabled && snap.req.backlightStatus === 1
+      ? Math.min(1, pwmIntensity / 254)
+      : 0;
 
-  // 内部输出档位与外部输入限值相互独立，均由 CWCM 上报 / 控制台下发
-  const internal = charging ? INTERNAL_LEVEL : 0;
-  const fault = intensity === FAULT_INTENSITY;
-
-  // Actual 上限 = min(External Power Limit, Internal Power Level)
-  const upperLimit = Math.min(extLimit, internal);
-  // 收到超过上限的 Actual 值即为异常
-  const overLimit = charging && internal > 0 && actual > upperLimit;
-
-  // 实际输出功率（CWCM 上报，整数）：在 0 ~ Internal 之间随机游走
-  useEffect(() => {
-    if (!charging || internal === 0) {
-      setActual(0);
-      return;
-    }
-    let v = Math.round(internal * 0.8);
-    setActual(v);
-    const id = window.setInterval(() => {
-      v = Math.max(0, Math.min(internal, v + Math.round((Math.random() - 0.5) * 40)));
-      setActual(v);
-    }, 1200);
-    return () => window.clearInterval(id);
-  }, [charging, internal]);
+  const linkText =
+    snap.link === 'open'
+      ? 'LIN 已连接'
+      : snap.link === 'connecting'
+        ? '连接中…'
+        : snap.link === 'error'
+          ? '连接失败'
+          : 'LIN 未连接';
 
   return (
     <div className="swm-page">
-      {/* ===== 上半：CWCM 实物图 + 输出监控 ===== */}
+      {/* ===== 上半：CWCM 实物图 + 链路状态 ===== */}
       <section className="swm-stage cwcm-stage" aria-label="CWCM USB 充电模块视图">
         <div className="cwcm-head">
           <span className="cwcm-module-name">CWCM - Central Wired Charging Module</span>
-          <button
-            type="button"
-            className={`cwcm-enable ${charging ? 'is-on' : ''}`}
-            onClick={() => setCharging((v) => !v)}
-            aria-pressed={charging}
-          >
-            <span className="cwcm-enable-dot" />
-            <span className="cwcm-enable-label">充电使能</span>
-            <strong className="cwcm-enable-state">{charging ? 'ON' : 'OFF'}</strong>
-          </button>
+          <div className="cwcm-head-actions">
+            <span
+              className={`cwcm-link-state ${live ? 'is-open' : snap.link === 'error' ? 'is-err' : ''}`}
+              title={snap.linkError ?? `通道 ${WCCM_CHANNEL} · 19.2 kbps · 主节点`}
+            >
+              {linkText}
+            </span>
+            <button
+              type="button"
+              className={`cwcm-enable ${live ? 'is-on' : ''}`}
+              onClick={() => (live ? cwcmLink.disconnect() : cwcmLink.connect())}
+              disabled={snap.link === 'connecting'}
+            >
+              <span className="cwcm-enable-dot" />
+              <span className="cwcm-enable-label">{live ? '断开' : '连接'}</span>
+            </button>
+            <button
+              type="button"
+              role="switch"
+              className={`cwcm-power ${snap.running ? 'is-on' : ''}`}
+              onClick={() => cwcmLink.setCharging(!snap.running)}
+              disabled={!live}
+              aria-checked={snap.running}
+              title={
+                !live
+                  ? '先连接 LIN 通道'
+                  : snap.running
+                    ? '充电中：主节点按 70 ms 调度 0x26 / 0x27，端口按信号开关'
+                    : '关闭充电：发送 0x3C 休眠（充电停 · LED 灭）'
+              }
+            >
+              <span className="cwcm-power-label">充电</span>
+              <span className="cwcm-power-track" aria-hidden="true">
+                <span className="cwcm-power-knob" />
+              </span>
+              <strong className="cwcm-power-state">{snap.running ? 'ON' : 'OFF'}</strong>
+            </button>
+          </div>
         </div>
 
         <div className="cwcm-body">
@@ -100,12 +106,13 @@ export function CWCMTesting() {
               {USB_PORTS.map((p) => (
                 <span
                   key={p.id}
-                  className={`usb-port ${charging ? 'is-lit' : ''}`}
+                  className="usb-port"
                   style={{
                     left: `${p.left}%`,
                     top: `${p.top}%`,
                     width: `${p.w}%`,
                     height: `${p.h}%`,
+                    opacity: ledLevel,
                   }}
                   aria-hidden="true"
                 />
@@ -113,26 +120,32 @@ export function CWCMTesting() {
             </div>
           </div>
 
-          {/* CWCM 输出的功率监控（只读） */}
-          <div className="cwcm-readouts" aria-label="CWCM 输出监控">
+          {/* 链路与模块回读（全部来自 LIN 实际收发） */}
+          <div className="cwcm-readouts" aria-label="CWCM 链路状态">
             <div className="cwcm-readout">
-              <span className="cwcm-readout-label">Internal Power Level</span>
-              <span className={`cwcm-readout-value ${internal > 0 ? 'is-on' : ''}`}>
-                {internal} <em>W</em>
-              </span>
-            </div>
-            <div className={`cwcm-readout ${overLimit ? 'is-warn' : ''}`}>
-              <span className="cwcm-readout-label">
-                Actual Power Level
-                {overLimit && <em className="warn-tag">WARNING</em>}
-              </span>
-              <span
-                className={`cwcm-readout-value ${overLimit ? 'is-warn' : actual > 0 ? 'is-on' : ''}`}
-              >
-                {actual} <em>W</em>
+              <span className="cwcm-readout-label">LIN Charging</span>
+              <span className={`cwcm-readout-value ${snap.running ? 'is-on' : ''}`}>
+                {snap.running ? 'ACTIVE' : snap.sleeping ? 'SLEEP' : 'OFF'}
               </span>
               <span className="cwcm-readout-hint">
-                上限 min(Ext, Int) = {upperLimit} W
+                {snap.running
+                  ? '0x26 / 0x27 · 70 ms 调度'
+                  : snap.sleeping
+                    ? '0x3C 休眠 · 充电停'
+                    : '开关 OFF · 未调度'}
+              </span>
+            </div>
+            <div className={`cwcm-readout ${snap.misses > 0 && snap.running ? 'is-warn' : ''}`}>
+              <span className="cwcm-readout-label">Module Reply</span>
+              <span className={`cwcm-readout-value ${snap.rx > 0 ? 'is-on' : ''}`}>
+                {snap.rx} <em>帧</em>
+              </span>
+              <span className={`cwcm-readout-hint ${snap.misses > 0 ? 'is-err' : ''}`}>
+                {snap.misses > 0
+                  ? `未应答 ${snap.misses}`
+                  : snap.lastResHex
+                    ? snap.lastResHex
+                    : '—'}
               </span>
             </div>
           </div>
@@ -141,7 +154,7 @@ export function CWCMTesting() {
 
       {/* ===== 下半：信息 / 控制 ===== */}
       <section className="swm-monitors cwcm-monitors" aria-label="CWCM 信息与控制">
-        {/* WCCM 信息回传 */}
+        {/* WCCM 信息回传（0x27） */}
         <div className="monitor" style={{ ['--accent' as any]: ACCENT }}>
           <div className="monitor-head">
             <span className="monitor-dot" />
@@ -150,16 +163,20 @@ export function CWCMTesting() {
           <div className="wccm-fields">
             <div className="wccm-field">
               <span className="pw-label">WCCM Part Number</span>
-              <span className="wccm-val">{WCCM_PART_NUMBER || EMPTY_24}</span>
+              <span className="wccm-val" title={snap.partNo}>
+                {snap.partNo || '—'}
+              </span>
             </div>
             <div className="wccm-field">
               <span className="pw-label">WCCM Serial Number</span>
-              <span className="wccm-val">{WCCM_SERIAL_NUMBER || EMPTY_24}</span>
+              <span className="wccm-val" title={snap.serialNo}>
+                {snap.serialNo || '—'}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* 功率控制 */}
+        {/* 功率控制（LIN 信号） */}
         <div className="monitor" style={{ ['--accent' as any]: ACCENT }}>
           <div className="monitor-head">
             <span className="monitor-dot" />
@@ -167,27 +184,14 @@ export function CWCMTesting() {
           </div>
           <div className="pw-rows">
             <div className="pw-row">
-              <span className="pw-label">External Power Limit</span>
-              <select
-                className="pw-select"
-                value={extLimit}
-                onChange={(e) => setExtLimit(Number(e.target.value))}
-              >
-                {POWER_LEVELS.map((lv) => (
-                  <option key={lv} value={lv}>
-                    {lv} W
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="pw-row">
               <span className="pw-label">EIPowerStatus</span>
               <select
                 className="pw-select"
-                value={eiPowerStatus}
-                onChange={(e) => setEiPowerStatus(e.target.value)}
+                value={snap.req.elPowerStatus}
+                onChange={(e) => cwcmLink.setElPowerStatus(e.target.value as (typeof EL_POWER_OPTIONS)[number])}
+                disabled={!ready}
               >
-                {EI_POWER_STATUS.map((o) => (
+                {EL_POWER_OPTIONS.map((o) => (
                   <option key={o} value={o}>
                     {o}
                   </option>
@@ -198,20 +202,18 @@ export function CWCMTesting() {
               <span className="pw-label">LimitedPowerMode</span>
               <select
                 className="pw-select"
-                value={limitedPowerMode}
-                onChange={(e) => setLimitedPowerMode(e.target.value)}
+                value={String(snap.req.limitedPowerMode)}
+                onChange={(e) => cwcmLink.setLimitedPowerMode(Number(e.target.value) as 0 | 1)}
+                disabled={!ready}
               >
-                {LIMITED_POWER_MODE.map((o) => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
-                ))}
+                <option value="0">False</option>
+                <option value="1">True</option>
               </select>
             </div>
           </div>
         </div>
 
-        {/* LED 背光 */}
+        {/* LED 背光（LIN 信号） */}
         <div className="monitor" style={{ ['--accent' as any]: ACCENT }}>
           <div className="monitor-head">
             <span className="monitor-dot" />
@@ -222,17 +224,18 @@ export function CWCMTesting() {
               <span className="pw-label">Backlight Status</span>
               <button
                 type="button"
-                className={`bl-switch ${backlightOn ? 'is-on' : ''}`}
-                onClick={() => setBacklightOn((v) => !v)}
-                aria-pressed={backlightOn}
+                className={`bl-switch ${snap.req.backlightStatus ? 'is-on' : ''}`}
+                onClick={() => cwcmLink.setBacklightStatus(snap.req.backlightStatus ? 0 : 1)}
+                aria-pressed={snap.req.backlightStatus === 1}
+                disabled={!ready}
               >
-                {backlightOn ? 'ON' : 'OFF'}
+                {snap.req.backlightStatus ? 'ON' : 'OFF'}
               </button>
             </div>
             <div className="pw-row">
               <span className="pw-label">Backlight Intensity</span>
-              <span className={`pw-value ${fault ? 'is-fault' : intensity > 0 ? 'is-on' : ''}`}>
-                {intensity}
+              <span className={`pw-value ${fault ? 'is-fault' : snap.req.backlightIntensity > 0 ? 'is-on' : ''}`}>
+                {snap.req.backlightIntensity}
                 {fault && <em className="fault-tag">Fault Condition Present</em>}
               </span>
             </div>
@@ -242,23 +245,59 @@ export function CWCMTesting() {
               min={0}
               max={255}
               step={1}
-              value={intensity}
-              onChange={(e) => setIntensity(Number(e.target.value))}
+              value={snap.req.backlightIntensity}
+              onChange={(e) => cwcmLink.setBacklightIntensity(Number(e.target.value))}
               aria-label="Backlight Intensity"
+              disabled={!ready}
             />
           </div>
         </div>
       </section>
 
-      {/* LIN Trace */}
+      {/* LIN Trace（0x26 / 0x27 / 0x3C 实际收发） */}
       <div className="sws-trace cwcm-trace">
         <div className="sws-trace-head">
           <span className="sws-trace-dot" />
           <span className="sws-trace-title">LIN Trace</span>
-          <span className="sws-trace-sub">· 报文监控（待接入信号）</span>
+          <span className="sws-trace-sub">
+            TX＝主节点下发 · RX＝WCCM 应答 · TX {snap.tx} / RX {snap.rx}
+            {snap.misses > 0 ? ` · 未应答 ${snap.misses}` : ''}
+          </span>
+          <button
+            type="button"
+            className="ghost bta-clear"
+            onClick={() => cwcmLink.clearFrames()}
+            disabled={snap.frames.length === 0}
+          >
+            清空
+          </button>
         </div>
         <div className="sws-trace-body">
-          <div className="sws-trace-empty">等待 LIN 信号接入…</div>
+          {snap.frames.length === 0 ? (
+            <div className="sws-trace-empty">
+              {!live
+                ? (snap.link === 'error' && snap.linkError
+                    ? snap.linkError
+                    : `未连接 —— 先点「连接」打开 ${WCCM_CHANNEL}（XL2 主节点 19.2 kbps）`)
+                : snap.running
+                  ? 'LIN 通讯中，等待 0x27 应答…'
+                  : snap.sleeping
+                    ? '模块已休眠（0x3C 已发），把「充电」拨到 ON 恢复'
+                    : '已连接，把「充电」拨到 ON 开始调度'}
+            </div>
+          ) : (
+            <ul className="bta-frames">
+              {snap.frames.map((f) => (
+                <li key={f.key} className={`bta-frame is-${f.tone}`} title={f.detail}>
+                  <span className="bta-t">{fmtTime(f.ts)}</span>
+                  <span className="bta-dir">{f.dir}</span>
+                  <span className="bta-hex">{f.idText}</span>
+                  <span className="bta-name">{f.name}</span>
+                  <span className="bta-detail">{f.detail}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>
