@@ -1,7 +1,9 @@
 # AGENTS.md — JLR 硬件测试台架 HMI 开发说明
 
 > 本文件是**写给接手的 AI / 开发者**的交接文档。请先完整读一遍再动代码。
-> 最后更新：2026-11-27（**全站 UI 文案改英文**，供英国领导演示；报错/诊断文本可留中文；`<html lang="en">`；
+> 最后更新：2026-11-27（**WCCM-BT 头栏第一行整行删除**：模块名 / ANC / Limiter / Sync Time / Read State /
+> BT Enable 都不要；头栏只剩 `Output … Module …` 一行。协议动作仍在 `bta` 里保留，页面不再暴露；
+> **全站 UI 文案改英文**，供英国领导演示；报错/诊断文本可留中文；`<html lang="en">`；
 > 因英文更长调整了 Telemetry 名称列宽、SWS 监视卡标题、BT 已配对行状态列/按钮列宽、Zone 声卡下拉选项文案；
 > CWCM 拨「充电」ON 时 0x26 默认背光 ON · 100%；Fault(255) 按供应商逻辑图为
 > Error Status、不下发 PWM；暂只发 0x26/0x27 两帧；master-read 返回体已实测收紧为 `result.data`）
@@ -153,7 +155,7 @@ deploy/                台架部署脚本（Windows / 树莓派 kiosk）
 | SWM | 自适应 | 6 张卡单行，约 112 | 约 170 |
 | SWS | 自适应（两列） | 每侧 1×3，约 112 | 约 170 |
 | CWCM | 自适应 | 3 个面板，固定 112 | `.cwcm-trace` 约 170 |
-| WCCM-BT | `.bta-radio` 固定 **216**（头栏两行 + 扫描/发现/已配对三栏）+ `.bta-zones` 固定 **148**（4 张 Zone 卡，每卡自带播放器） | —（没有 monitor 行） | **`flex: 1 1 auto`，剩约 272** |
+| WCCM-BT | `.bta-radio` 固定 **216**（头栏一行 + 扫描/发现/已配对三栏）+ `.bta-zones` 固定 **148**（4 张 Zone 卡，每卡自带播放器） | —（没有 monitor 行） | **`flex: 1 1 auto`，剩约 300** |
 | WDCM | 自适应（实物图 max-height 205） | 2 个面板，固定 112 | 约 170 |
 | Window | `.stage` 网格（不是 `.swm-stage`） | — | 右侧 `.side` 列内 `.event-log` |
 
@@ -309,19 +311,20 @@ USB 输出口：下方中间 3 个 + 右下 1 个，共 4 个，**不可单独�
 - **动作回执必须显示出来**：`0x0012/0x0014/0x0022/0x0032/0x0034/0x0042/0x0044/0x2002/0x2022/0x2032/0x2042`
   都会把模块的 return_value 原样写进扫描区的提示行。真实模块**蓝牙关着时扫描会回 REJECTED(2)**
   （2026-11-24 上位机日志第一条就是），蓝牙显示 OFF 时「开始扫描」直接禁用，避免"点了没反应"。
-- 动作（分两处 UI）：
+- **头栏第一行已删（2026-11-27 用户要求）**：模块名 / ANC / Limiter / Sync Time / Read State / BT Enable
+  全部拿掉，"这一行意义不大"。对应的协议动作（`0x2001` 使能、`0x2051` 对时、`0x2003`+`0x3017` 读状态、
+  `0x2031`/`0x2041` ANC/Limiter）在 `domain/btaudio.ts` 里**仍保留**（控制台/后续可复用），但页面不再暴露；
+  蓝牙 OFF 时提示改成"去上位机使能"。头栏现在只剩一行 `Output … Module …`（`.bta-head-route`）。
+- 动作（页面剩下的）：
   | UI | 发的帧 |
   |---|---|
-  | 蓝牙使能按钮 | `0x2001`，`EnumBTConnectivityState 1=ENABLED 2=DISABLED` |
-  | 对时 / 读状态 | `0x2051` / `0x2003` + `0x3017` |
   | 开始扫描 / 取消扫描 | `0x0011`（空 payload）/ `0x0013` |
   | 配对 / 连接 / 断开 / 取消配对 | `0x0021` / `0x0031` / `0x0033` / `0x0043`，payload `field1=btdevice_id` |
   | 挂载下拉 | `0x0041`，`field1=btdevice_id, field2=zone_id` |
   | 音量滑条 | `0x2021`，`field1=id, field2=3(SET), field3=level`；0–60（`VOLUME_MAX`） |
   | 静音按钮 | `0x2021`，op 4=MUTE / 5=UNMUTE |
-  | ANC / Limiter 下拉 | `0x2031` / `0x2041`，`field1=0, field2=枚举`（ANC 1 OFF/2 ON/3 AMBIENT，Limiter 1 OFF/2 ON） |
-- 按钮高亮/回显**一律以模块上报为准**，不要用点击时的本地值乐观更新 —— 比如蓝牙使能按钮点了之后
-  仍显示 `—` 直到 `0x2002`/`0x2006` 回来。
+- 按钮高亮/回显**一律以模块上报为准**，不要用点击时的本地值乐观更新 —— 比如配对了之后
+  仍显示旧状态，直到 `0x0022`/`0x0020` 回来。
 - 挂载是**手动的**（已配对列表右侧的下拉），连上设备后不会自动 attach；`CONNECTED` 只表示"已连接"，
   不代表已挂载。协议里 Attach 由 CCCM 发起（Comment00432042），这里就是 CCCM 侧。
 - 播放控制 `PLAY1/PAUSE2/STOP3/NEXT4/PREV5`（`0x2016`）**只能从耳机侧上报**，模块不接受 CCCM 直接发，
@@ -361,12 +364,13 @@ USB 输出口：下方中间 3 个 + 右下 1 个，共 4 个，**不可单独�
   3. 上位机或 Windows 独占模式可能占住 UAC 端点，`setSinkId` 会 `AbortError`。
 - `canRoute` 门控：没拿到真实 deviceId 时，所有跟输出有关的控件一律 `disabled`，
   不能让人以为按了有用。
-- **音频路由信息只在头栏第二行出现一次**：`输出 N 路 [授权] [刷新] <状态>`。
+- **音频路由信息只在头栏出现一次**：`输出 N 路 [授权] [刷新] <状态>`。
   `授权` 只在未授权时出现；状态行 `bta-audio-state` 最长 560px（超了省略，完整文本放 `title`），
   文案要短，错误提示一律翻成白话，别只甩 `DOMException.name`。
 - 原来那张 `Audio Downlink` 监控卡（四路绑定一览）和 `Module Report` 卡**已删除**：
   绑定/播放状态每张 Zone 卡自己就显示，重复。
-- ANC / Limiter 下拉在头栏第一行。⚠️ 头栏是**两行**，`align-items: stretch` 不能丢（见第 10 节）。
+- 头栏现在**只有一行**（`.bta-head-route`：输出路由 + 模块链路）。原来的第一行（模块名/ANC/Limiter/
+  Sync/Read/BT Enable）已按用户要求整行删除，`.bta-head-main` / `.bta-globals` / `.bta-gsel` 样式一并清掉。
 - ⚠️ 四路真实出声跟 CDC 报文**没有任何关系**：这一路能不能响只看「有没有文件 + 绑没绑声卡」，
   模块上有没有设备挂在这一路是另一回事。别把 `audioOut` 的状态接到 `bta` 上，反之亦然。
 - 耳机上报条（`.bta-inject-strip`）和它的快捷键（`Space` / `[` `]` / `P` `N`）**已随模拟一起删除**。
@@ -374,7 +378,7 @@ USB 输出口：下方中间 3 个 + 右下 1 个，共 4 个，**不可单独�
 
 #### 真实模块链路（`domain/cdc.ts` + `domain/serial.ts`，Web Serial）
 
-头栏第二行右端：`模块 <状态> [连接]`。点「连接」弹浏览器串口选择框，选 WCCM 那个 COM。
+头栏右端：`模块 <状态> [连接]`。点「连接」弹浏览器串口选择框，选 WCCM 那个 COM。
 
 - **只能 `http://localhost`**（安全上下文里才有 `navigator.serial`），浏览器用 Edge / Chrome；
   用局域网 IP 打开时 `navigator.serial` 直接不存在。
@@ -471,9 +475,9 @@ USB 输出口：下方中间 3 个 + 右下 1 个，共 4 个，**不可单独�
 | PowerShell 里 `python -c` 多行脚本报语法错 | `r"..."` 的前缀被吞；改成写临时 `.py` 文件再执行 |
 | 终端 `npm` 找不到 | PATH 未刷新，用 `%USERPROFILE%\.local\lib\nodejs\npm.cmd` |
 | 预览空白 | dev server 重启后 IDE 预览未重连；刷新或确认端口 5173 |
-| 状态文字被省略号截掉 | `.bta-audio-state` 在头栏第二行最多 560px（以前在卡片头里只有 248px）；文案写短，完整文本放 `title` |
+| 状态文字被省略号截掉 | `.bta-audio-state` 在头栏最多 560px（以前在卡片头里只有 248px）；文案写短，完整文本放 `title` |
 | WCCM-BT 整页变窄、品牌文字居中、按钮折行 | `.swm-stage:not(.cwcm-stage)` 给了 `align-items:center`，`.bta-radio` 必须显式 `align-items:stretch` |
-| 头栏一行塞不下（品牌 + ANC/Limiter/对时/读状态 + 使能，外加 输出/授权/刷新/状态/模块/连接） | 头栏是两行：`.bta-head-main`（品牌+全局+使能）/ `.bta-head-route`（音频路由 + 模块链路）；单项自然宽度合计远超 1280，一行必崩 |
+| 头栏一行塞不下 | 曾因此拆成两行（`.bta-head-main` + `.bta-head-route`）。2026-11-27 整行删除第一行后只剩 `.bta-head-route`，一行放得下；**别再把模块名/ANC/Limiter 那组加回来** |
 | `setSinkId` 报 `NotSupportedError` 被当成"要授权" | 按规范它是"这路输出不存在/不可用"，和 `NotFoundError` 同类；只有 `SecurityError`/`NotAllowedError` 才是权限问题 |
 | 控制台里调 store 显示"未初始化" | Vite dev 改过文件后组件用的是带 `?v=` 的模块，`import('/src/domain/x.ts')` 拿到的是**另一个实例**；先刷新页面再验 |
 | 无头截图里 `NotAllowedError` | 脚本合成的 `.click()` 不是真实手势，自动播放被拦是正常现象，别当成 bug |
@@ -481,7 +485,7 @@ USB 输出口：下方中间 3 个 + 右下 1 个，共 4 个，**不可单独�
 | 连接报 `NetworkError` | COM 被供应商上位机占着（串口独占），先关上位机 |
 | 改了 `CDC` 表里的 pt 就不通 | 0x2001/0x2003 实机是 pt=1、0x3017 是 4，跟规范不一致但模块只认实机值 |
 | 分不清页面上哪些是真实发生的 | 这就是模拟被全删的原因。**别再往这页加假设备/假电量/假播放状态**；没报就显示 `—` |
-| 蓝牙使能按钮点了不回显 | 正常。按钮状态只认模块上报（`0x2002`/`0x2006`），不做本地乐观更新 |
+| 蓝牙使能按钮点了不回显 | 曾有的按钮（2026-11-27 已随头栏第一行删除）。所有开关状态只认模块上报（`0x2002`/`0x2006`），不做本地乐观更新 |
 | 把 `EnumBTConnectivityState` 当成 0/1/2 | proto 是 **1=ENABLED、2=DISABLED**，不是 INITIALIZATION 那套 |
 | 点扫描没反应 | 先看提示行的回执：模块蓝牙关着时 `0x0012` 回 `REJECTED(2)`。连上 ≠ 蓝牙已使能 |
 | `0x3018` 解析出 0 台设备 | id 列表是 **packed** 编码（`12 01 01` 一个 LEN 里塞多条 varint），用 `pbRepeated()` 解，别直接取 `m[2]` 的数字 |
@@ -517,14 +521,17 @@ USB 输出口：下方中间 3 个 + 右下 1 个，共 4 个，**不可单独�
 - [ ] WDCM 接真实 CAN 信号：充电档位（25W/15W/5W/0）下发、NFC 检测触发、FOD 异物检测上报、Phone As Key 握手判定
       —— 这几项目前都是组件内 `useState`，届时建 `src/domain/wdcm.ts` 状态机替换
 - [ ] **WCCM-BT 页真机联调**：模拟已全删，页面动作全部走 `serialLink`，但只在假串口上验过状态机。
-      真机要逐条确认：蓝牙使能 `0x2001`、扫描 `0x0011`/取消 `0x0013`、配对 `0x0021`、连接 `0x0031`、
-      断开 `0x0033`、挂载 `0x0041`、音量/静音 `0x2021`、ANC `0x2031`、Limiter `0x2041`；
+      真机要逐条确认：扫描 `0x0011`/取消 `0x0013`、配对 `0x0021`、连接 `0x0031`、
+      断开 `0x0033`、挂载 `0x0041`、音量/静音 `0x2021`（蓝牙使能 `0x2001`、ANC `0x2031`、Limiter `0x2041`
+      的页面入口已于 2026-11-27 随头栏第一行删除，联调时用上位机对照即可）；
       Trace 里能看到成对回执就算通。已确认 `0x3018` 只回 id 列表，名字/属性靠 `0x3015→0x3016`
       那组查询补（页面已自动发），真机上确认这组查询回包齐全
 - [ ] **出声功能上台架实测**：本机只有 1 路输出，`audioout.ts` 全程是用假设备列表（4 路 `WCCM UAC Ch-x`）验的；
       真机要确认"四路各选一首 → 四台耳机是否各自出声"，并确认上位机运行时能不能同时占住 UAC（独占模式）
-- [ ] 页面复审提过、尚未拍板的三项：Zone 占用标注、一键"全部断开 + 清空配对"、ANC/Limiter 的"上位机未实现"标记
-- [ ] 确认 ANC / Limiter 两族报文（0x2031~0x2046）在真实模块上的实际编号——供应商上位机未实现，目前只有 SSRD 依据
+- [ ] 页面复审提过、尚未拍板的两项：Zone 占用标注、一键"全部断开 + 清空配对"
+      （ANC/Limiter 那一项随控件删除自然取消）
+- [ ] 确认 ANC / Limiter 两族报文（0x2031~0x2046）在真实模块上的实际编号——供应商上位机未实现，目前只有 SSRD 依据；
+      页面已不再下发这两族，等需要时再加回控件
 - [ ] **CWCM LIN 真机联调**（等 XL2 到货）：先 `bmcli bench init --project=... --network=cwcm-lin --channel=<SN/port> --pullup=1k --power=off`，
       重启 `bmcli web`，再从页面「连接」；然后逐项确认 —— 冷启动时按网络名打开是否是通的
       （虚拟通道上未开过的逻辑名会回 404 `channel is not currently enumerated`，实测只有已经打开的通道能按名解析；

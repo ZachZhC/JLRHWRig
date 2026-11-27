@@ -16,9 +16,7 @@ import {
   DISCOVERY_STATE_TEXT,
   VOLUME_MAX,
   ZONES,
-  type AncState,
   type DevState,
-  type LimiterState,
 } from '../domain/btaudio';
 import { CDC } from '../domain/cdc';
 import { serialLink } from '../domain/serial';
@@ -54,8 +52,6 @@ const STATE_TONE: Record<DevState, 'idle' | 'busy' | 'ok' | 'live' | 'bad'> = {
   FAULT: 'bad',
 };
 
-const ANC_OPTIONS: AncState[] = ['OFF', 'ON', 'AMBIENT'];
-const LIMITER_OPTIONS: LimiterState[] = ['OFF', 'ON'];
 
 function fmtTime(ts: number) {
   return new Date(ts).toLocaleTimeString('en-GB', { hour12: false });
@@ -121,82 +117,6 @@ export function BTAudioTesting() {
       {/* ===== ① 扫描 / 发现 / 配对 ===== */}
       <section className="swm-stage bta-radio" aria-label="Bluetooth scan and pairing">
         <div className="bta-head">
-          <div className="bta-head-main">
-            <span className="cwcm-module-name">
-              WCCM - Wireless Connectivity Controller Module · BT Audio
-            </span>
-            <div className="bta-globals">
-              <span className="pw-label">ANC</span>
-              <select
-                className="bta-gsel"
-                value={snap.anc ?? ''}
-                disabled={!live}
-                aria-label="Global ANC"
-                onChange={(e) => {
-                  const v = e.target.value as AncState;
-                  if (v) bta.setAnc(v);
-                }}
-              >
-                <option value="">{live ? '— not reported' : '—'}</option>
-                {ANC_OPTIONS.map((o) => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
-                ))}
-              </select>
-              <span className="pw-label">Limiter</span>
-              <select
-                className="bta-gsel"
-                value={snap.limiter ?? ''}
-                disabled={!live}
-                aria-label="Global limiter"
-                onChange={(e) => {
-                  const v = e.target.value as LimiterState;
-                  if (v) bta.setLimiter(v);
-                }}
-              >
-                <option value="">{live ? '— not reported' : '—'}</option>
-                {LIMITER_OPTIONS.map((o) => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="bta-btn is-mini"
-                disabled={!live}
-                title="Send the current time to the module (0x2051)"
-                onClick={() => bta.syncTime()}
-              >
-                Sync Time
-              </button>
-              <button
-                type="button"
-                className="bta-btn is-mini"
-                disabled={!live}
-                title="Read BT state + paired list (0x2003 / 0x3017)"
-                onClick={() => bta.readAll()}
-              >
-                Read State
-              </button>
-            </div>
-            <button
-              type="button"
-              className={`cwcm-enable ${snap.enabled ? 'is-on' : ''}`}
-              disabled={!live}
-              onClick={() => bta.setEnabled(!snap.enabled)}
-              aria-pressed={snap.enabled === true}
-              title="Send 0x2001; the switch state follows module reports"
-            >
-              <span className="cwcm-enable-dot" />
-              <span className="cwcm-enable-label">BT Enable</span>
-              <strong className="cwcm-enable-state">
-                {snap.enabled === null ? '—' : snap.enabled ? 'ON' : 'OFF'}
-              </strong>
-            </button>
-          </div>
-
           <div className="bta-head-route">
             <span className="pw-label">Output</span>
             <span className={`bta-out-count ${aud.canRoute ? 'is-on' : ''}`}>
@@ -268,7 +188,7 @@ export function BTAudioTesting() {
               disabled={!live || snap.discovery === 'DISCOVERING' || snap.enabled === false}
               title={
                 snap.enabled === false
-                  ? 'Module reports Bluetooth off — scans will be rejected; press "BT Enable" first'
+                  ? 'Module reports Bluetooth off — scans will be rejected; enable Bluetooth in the vendor tool first'
                   : 'Send SetBTRadioDiscoveryRequest (0x0011) to the module'
               }
               onClick={() => bta.startDiscovery()}
@@ -293,7 +213,7 @@ export function BTAudioTesting() {
               {snap.note ||
                 (live
                   ? snap.enabled === false
-                    ? 'Bluetooth is off: press "BT Enable", wait for ON, then scan'
+                    ? 'Bluetooth is off: enable it in the vendor tool, then scan'
                     : 'Devices and btdevice_id are reported by the module'
                   : 'Module not connected — the actions below are unavailable')}
             </p>
@@ -566,7 +486,7 @@ export function BTAudioTesting() {
             <div className="sws-trace-empty">
               {live
                 ? 'Module connected, waiting for reports… (time sync / BT state / paired list were sent on connect)'
-                : 'Module not connected — use "Module · Connect" on the second header row; close the vendor tool first'}
+                : 'Module not connected — press Connect in the header; close the vendor tool first'}
             </div>
           ) : (
             <ul className="bta-frames">

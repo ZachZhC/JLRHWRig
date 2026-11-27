@@ -2471,12 +2471,6 @@ button {
   gap: 4px;
 }
 
-.bta-head-main {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
 /* 输出设备摘要（授权 / 刷新 / 状态）：原来 Audio Downlink 卡里的内容 */
 .bta-head-route {
   display: flex;
@@ -2968,26 +2962,6 @@ button {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-/* ---------- ① 头部全局下发条（ANC / Limiter / OS Time） ---------- */
-.bta-globals {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-  margin-right: 10px;
-}
-
-.bta-gsel {
-  height: 22px;
-  padding: 0 4px;
-  border: 1px solid #223140;
-  border-radius: 6px;
-  background: #0d1620;
-  color: #cfe3ee;
-  font-family: var(--mono);
-  font-size: 10px;
 }
 
 /* ---------- ③ 音频路由状态（头栏里一行） ---------- */
